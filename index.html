@@ -222,6 +222,90 @@
       };
       document.getElementById('page-title').innerText = titles[page] || 'LexCloud';
     }
+// --- EXPEDIENTES (guardar en el navegador) ---
+
+function getCases() {
+  const raw = localStorage.getItem('lexcloud_cases');
+  if (!raw) {
+    const empty = [];
+    localStorage.setItem('lexcloud_cases', JSON.stringify(empty));
+    return empty;
+  }
+  try {
+    return JSON.parse(raw) || [];
+  } catch {
+    return [];
+  }
+}
+
+function saveCases(cases) {
+  localStorage.setItem('lexcloud_cases', JSON.stringify(cases));
+}
+
+function renderCases() {
+  const cases = getCases();
+  const tbody = document.getElementById('cases-tbody');
+  if (!tbody) return;
+
+  tbody.innerHTML = "";
+
+  cases.forEach((c, index) => {
+    const tr = document.createElement('tr');
+
+    tr.innerHTML = `
+      <td>${c.ref}</td>
+      <td>${c.client}</td>
+      <td>${c.matter}</td>
+      <td>${c.status}</td>
+      <td>
+        <button class="btn" style="padding:6px 10px;" onclick="deleteCase(${index})">
+          Borrar
+        </button>
+      </td>
+    `;
+
+    tbody.appendChild(tr);
+  });
+}
+
+function openNewCase() {
+  const ref = prompt("Referencia (ej: 2026/003):");
+  if (!ref) return;
+
+  const client = prompt("Cliente:");
+  if (!client) return;
+
+  const matter = prompt("Asunto:");
+  if (!matter) return;
+
+  const status = prompt(
+    "Estado (ABIERTO / FACTURADO / ARCHIVADO):",
+    "ABIERTO"
+  ) || "ABIERTO";
+
+  const cases = getCases();
+  cases.unshift({ ref, client, matter, status });
+
+  saveCases(cases);
+  renderCases();
+
+  alert("Expediente creado correctamente ✅");
+}
+
+function deleteCase(index) {
+  if (!confirm("¿Seguro que quieres borrar este expediente?")) return;
+
+  const cases = getCases();
+  cases.splice(index, 1);
+
+  saveCases(cases);
+  renderCases();
+}
+
+// Pintar tabla cuando cargue la página
+window.addEventListener('load', function () {
+  renderCases();
+});
   </script>
 </body>
 </html>
