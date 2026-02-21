@@ -1,11 +1,226 @@
 <!DOCTYPE html>
-<html>
+<html lang="es">
 <head>
-    <title>LexCloud</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>LexCloud</title>
+  <style>
+    body { margin:0; font-family: Arial, sans-serif; background:#f5f7fb; }
+    .app { display:flex; height:100vh; }
+
+    /* Menú lateral */
+    .sidebar {
+      width: 240px;
+      background: #111827;
+      color: white;
+      padding: 18px 14px;
+      box-sizing: border-box;
+    }
+    .brand {
+      font-size: 20px;
+      font-weight: 700;
+      margin-bottom: 18px;
+      display:flex;
+      align-items:center;
+      gap:10px;
+    }
+    .brand-badge {
+      width:32px; height:32px; border-radius:10px;
+      background:#22c55e; display:flex; align-items:center; justify-content:center;
+      color:#0b1220; font-weight:900;
+    }
+    .nav a {
+      display:flex;
+      align-items:center;
+      gap:10px;
+      padding: 10px 10px;
+      margin: 6px 0;
+      border-radius: 10px;
+      color: #e5e7eb;
+      text-decoration: none;
+      cursor: pointer;
+      user-select:none;
+    }
+    .nav a:hover { background:#1f2937; }
+    .nav a.active { background:#2563eb; color:white; }
+    .icon {
+      width: 24px; text-align:center; font-size: 18px;
+    }
+
+    /* Zona principal */
+    .main { flex:1; padding: 18px; box-sizing:border-box; }
+    .topbar {
+      background:white;
+      border-radius: 14px;
+      padding: 14px 16px;
+      display:flex;
+      justify-content: space-between;
+      align-items:center;
+      box-shadow: 0 6px 18px rgba(0,0,0,0.06);
+    }
+    .title { font-size: 18px; font-weight: 700; }
+    .user { color:#374151; font-size: 14px; }
+
+    .card {
+      margin-top: 16px;
+      background:white;
+      border-radius: 14px;
+      padding: 16px;
+      box-shadow: 0 6px 18px rgba(0,0,0,0.06);
+    }
+    .muted { color:#6b7280; }
+
+    /* Tablas simples */
+    table { width:100%; border-collapse: collapse; }
+    th, td { text-align:left; padding:10px; border-bottom: 1px solid #e5e7eb; font-size:14px; }
+    th { background:#f9fafb; }
+
+    /* Botón */
+    .btn {
+      background:#2563eb; color:white; border:none;
+      padding:10px 12px; border-radius:10px; cursor:pointer;
+      font-weight:600;
+    }
+    .btn:active { transform: translateY(1px); }
+  </style>
 </head>
-<body style="font-family: Arial; text-align: center; margin-top: 100px;">
-    <h1>Hola Carlos 👋</h1>
-    <h2>LexCloud funcionando en la nube</h2>
-    <p>Primer paso completado.</p>
+
+<body>
+  <div class="app">
+    <!-- Menú -->
+    <div class="sidebar">
+      <div class="brand">
+        <div class="brand-badge">L</div>
+        LexCloud
+      </div>
+
+      <div class="nav">
+        <a id="nav-inicio" class="active" onclick="showPage('inicio')">
+          <span class="icon">🏠</span> Inicio
+        </a>
+        <a id="nav-expedientes" onclick="showPage('expedientes')">
+          <span class="icon">📁</span> Expedientes
+        </a>
+        <a id="nav-facturacion" onclick="showPage('facturacion')">
+          <span class="icon">🧾</span> Facturación
+        </a>
+        <a id="nav-agenda" onclick="showPage('agenda')">
+          <span class="icon">📅</span> Agenda
+        </a>
+        <a id="nav-ajustes" onclick="showPage('ajustes')">
+          <span class="icon">⚙️</span> Ajustes
+        </a>
+      </div>
+
+      <div style="margin-top:18px; font-size:12px; color:#9ca3af;">
+        Versión prueba (gratis)<br>
+        Acceso desde móvil/PC/tablet
+      </div>
+    </div>
+
+    <!-- Contenido -->
+    <div class="main">
+      <div class="topbar">
+        <div class="title" id="page-title">Inicio</div>
+        <div class="user">Usuario: <b>Carlos</b></div>
+      </div>
+
+      <!-- INICIO -->
+      <div class="card" id="page-inicio">
+        <h2 style="margin-top:0;">Hola Carlos 👋</h2>
+        <p class="muted">Esto ya parece un programa. Ahora iremos añadiendo funcionalidades reales: login, expedientes, agenda y facturación.</p>
+        <button class="btn" onclick="alert('Perfecto. Siguiente paso: crear pantalla de Expedientes con alta/baja.')">Siguiente paso</button>
+      </div>
+
+      <!-- EXPEDIENTES -->
+      <div class="card" id="page-expedientes" style="display:none;">
+        <h2 style="margin-top:0;">Expedientes</h2>
+        <p class="muted">Ejemplo de listado (todavía no guarda datos, es demo).</p>
+        <table>
+          <thead>
+            <tr>
+              <th>Ref</th>
+              <th>Cliente</th>
+              <th>Asunto</th>
+              <th>Estado</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td>2026/001</td><td>Cliente A</td><td>Reclamación cantidad</td><td>ABIERTO</td></tr>
+            <tr><td>2026/002</td><td>Cliente B</td><td>Mercantil</td><td>ARCHIVADO</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- FACTURACIÓN -->
+      <div class="card" id="page-facturacion" style="display:none;">
+        <h2 style="margin-top:0;">Facturación</h2>
+        <p class="muted">Ejemplo de factura con IVA/IRPF (demo).</p>
+        <table>
+          <thead>
+            <tr>
+              <th>Nº</th>
+              <th>Concepto</th>
+              <th>Base</th>
+              <th>IVA</th>
+              <th>IRPF</th>
+              <th>Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>A-0001</td>
+              <td>Honorarios asunto 2026/001</td>
+              <td>1.000,00 €</td>
+              <td>210,00 €</td>
+              <td>-150,00 €</td>
+              <td>1.060,00 €</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- AGENDA -->
+      <div class="card" id="page-agenda" style="display:none;">
+        <h2 style="margin-top:0;">Agenda</h2>
+        <p class="muted">Ejemplo (demo):</p>
+        <ul>
+          <li><b>27/02</b> — Vista en Juzgado 1</li>
+          <li><b>01/03</b> — Plazo contestación demanda (2026/001)</li>
+          <li><b>05/03</b> — Reunión cliente B</li>
+        </ul>
+      </div>
+
+      <!-- AJUSTES -->
+      <div class="card" id="page-ajustes" style="display:none;">
+        <h2 style="margin-top:0;">Ajustes</h2>
+        <p class="muted">Aquí irán: usuarios, permisos, series de facturación, IRPF por defecto, copias de seguridad, etc.</p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function showPage(page) {
+      const pages = ['inicio','expedientes','facturacion','agenda','ajustes'];
+      // Ocultar todas
+      pages.forEach(p => {
+        document.getElementById('page-' + p).style.display = 'none';
+        document.getElementById('nav-' + p).classList.remove('active');
+      });
+      // Mostrar elegida
+      document.getElementById('page-' + page).style.display = 'block';
+      document.getElementById('nav-' + page).classList.add('active');
+
+      // Título arriba
+      const titles = {
+        inicio: 'Inicio',
+        expedientes: 'Expedientes',
+        facturacion: 'Facturación',
+        agenda: 'Agenda',
+        ajustes: 'Ajustes'
+      };
+      document.getElementById('page-title').innerText = titles[page] || 'LexCloud';
+    }
+  </script>
 </body>
 </html>
