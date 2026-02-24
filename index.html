@@ -134,6 +134,47 @@
 
       <!-- EXPEDIENTES -->
       <div class="card" id="page-expedientes" style="display:none;">
+        <!-- FICHA EXPEDIENTE -->
+<div class="card" id="page-ficha" style="display:none;">
+  <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+    <h2 style="margin-top:0;">Ficha expediente</h2>
+    <button class="btn" type="button" onclick="goBackToCases()" style="background:#6b7280;">← Volver a Expedientes</button>
+  </div>
+
+  <p class="muted" id="ficha-subtitle">Cargando...</p>
+
+  <div style="display:flex; gap:12px; flex-wrap:wrap; margin-top:12px;">
+    <div class="card" style="margin:0; padding:12px; box-shadow:none; border:1px solid #e5e7eb; flex:1; min-width:240px;">
+      <b>Ref</b><br>
+      <span id="ficha-ref">-</span>
+    </div>
+
+    <div class="card" style="margin:0; padding:12px; box-shadow:none; border:1px solid #e5e7eb; flex:2; min-width:240px;">
+      <b>Cliente</b><br>
+      <span id="ficha-client">-</span>
+    </div>
+
+    <div class="card" style="margin:0; padding:12px; box-shadow:none; border:1px solid #e5e7eb; flex:3; min-width:240px;">
+      <b>Asunto</b><br>
+      <span id="ficha-matter">-</span>
+    </div>
+
+    <div class="card" style="margin:0; padding:12px; box-shadow:none; border:1px solid #e5e7eb; flex:1; min-width:200px;">
+      <b>Estado</b><br>
+      <span id="ficha-status">-</span>
+    </div>
+  </div>
+
+  <div style="margin-top:14px;">
+    <h3 style="margin:0 0 8px 0;">Próximamente</h3>
+    <ul class="muted" style="margin-top:0;">
+      <li>Actuaciones / notas</li>
+      <li>Documentos</li>
+      <li>Agenda vinculada</li>
+      <li>Facturas del expediente</li>
+    </ul>
+  </div>
+</div>
         <h2 style="margin-top:0;">Expedientes</h2>
         <p class="muted">Ejemplo de listado (todavía no guarda datos, es demo).</p>
        <button class="btn" type="button" onclick="openCaseForm()">Nuevo expediente</button>
@@ -476,6 +517,7 @@ if (st !== 'TODOS') {
         <td>${escapeHtml(c.matter)}</td>
         <td>${escapeHtml(c.status)}</td>
         <td style="text-align:right;">
+          <button class="btn" type="button" style="background:#111827;" onclick="openCase(${realIndex})">Abrir</button>
           <button class="btn" type="button" onclick="editCase(${i})">Editar</button>
           <button class="btn" type="button" style="background:#2563eb; margin-left:8px;" onclick="deleteCase(${i})">Borrar</button>
         </td>
@@ -514,7 +556,34 @@ if (st !== 'TODOS') {
 
     if (page !== 'expedientes') cancelCaseForm();
   }
+let currentCaseIndex = null;
 
+function openCase(index) {
+  const cases = getCases();
+  const c = cases[index];
+  if (!c) {
+    alert("No se encontró el expediente.");
+    return;
+  }
+
+  currentCaseIndex = index;
+
+  // Rellenar ficha
+  document.getElementById('ficha-ref').innerText = c.ref || '-';
+  document.getElementById('ficha-client').innerText = c.client || '-';
+  document.getElementById('ficha-matter').innerText = c.matter || '-';
+  document.getElementById('ficha-status').innerText = c.status || '-';
+
+  const sub = document.getElementById('ficha-subtitle');
+  if (sub) sub.innerText = `Expediente seleccionado: ${c.ref || ''}`;
+
+  // Ir a la pantalla ficha
+  showPage('ficha');
+}
+
+function goBackToCases() {
+  showPage('expedientes');
+}
   window.addEventListener('load', function () {
     renderCases();
     cancelCaseForm();
