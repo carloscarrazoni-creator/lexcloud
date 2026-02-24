@@ -137,6 +137,37 @@
         <h2 style="margin-top:0;">Expedientes</h2>
         <p class="muted">Ejemplo de listado (todavía no guarda datos, es demo).</p>
        <button class="btn" type="button" onclick="openCaseForm()">Nuevo expediente</button>
+        <!-- Barra de búsqueda + filtro -->
+<div style="margin-top:12px; display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+  <input id="search-q" placeholder="Buscar (ref, cliente o asunto)"
+         style="padding:10px; border:1px solid #ddd; border-radius:10px; min-width:260px; flex:1;"
+         oninput="renderCases()">
+
+  <select id="filter-status"
+          style="padding:10px; border:1px solid #ddd; border-radius:10px; min-width:200px;"
+          onchange="renderCases()">
+    <option value="">Todos los estados</option>
+    <option value="ABIERTO">ABIERTO</option>
+    <option value="FACTURADO">FACTURADO</option>
+    <option value="ARCHIVADO">ARCHIVADO</option>
+  </select>
+</div>
+
+<!-- Contadores -->
+<div style="margin-top:10px; display:flex; gap:10px; flex-wrap:wrap;">
+  <div class="card" style="margin:0; padding:10px 12px; box-shadow:none; border:1px solid #e5e7eb;">
+    <b>Abiertos:</b> <span id="kpi-open">0</span>
+  </div>
+  <div class="card" style="margin:0; padding:10px 12px; box-shadow:none; border:1px solid #e5e7eb;">
+    <b>Facturados:</b> <span id="kpi-billed">0</span>
+  </div>
+  <div class="card" style="margin:0; padding:10px 12px; box-shadow:none; border:1px solid #e5e7eb;">
+    <b>Archivados:</b> <span id="kpi-arch">0</span>
+  </div>
+  <div class="card" style="margin:0; padding:10px 12px; box-shadow:none; border:1px solid #e5e7eb;">
+    <b>Total:</b> <span id="kpi-total">0</span>
+  </div>
+</div>
 <div style="margin-top:12px; display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
   <input id="case-search" placeholder="Buscar (Ref, Cliente, Asunto)" 
          style="padding:10px; border:1px solid #ddd; border-radius:10px; min-width:260px; flex:1;"
@@ -356,20 +387,78 @@
       .replaceAll("'", '&#039;');
   }
 
-  function renderCases() {
-    const tbody = document.getElementById('cases-tbody');
-    if (!tbody) return;
+function renderCases() {
+  const tbody = document.getElementById('cases-tbody');
+  if (!tbody) return;
 
-    let cases = getCases();
+  // 1) Datos
+  const allCases = getCases();
 
-// Buscar texto
-const q = (document.getElementById('case-search')?.value || '').trim().toLowerCase();
-if (q) {
-  cases = cases.filter(c =>
-    String(c.ref || '').toLowerCase().includes(q) ||
-    String(c.client || '').toLowerCase().includes(q) ||
-    String(c.matter || '').toLowerCase().includes(q)
-  );
+  // 2) KPIs (contadores)
+  const openCount = allCases.filter(c => (c.status || '') === 'ABIERTO').length;
+  const billedCount = allCases.filter(c => (c.status || '') === 'FACTURADO').length;
+  const archCount = allCases.filter(c => (c.status || '') === 'ARCHIVADO').length;
+
+  const elOpen = document.getElementById('kpi-open');
+  const elBilled = document.getElementById('kpi-billed');
+  const elArch = document.getElementById('kpi-arch');
+  const elTotal = document.getElementById('kpi-total');
+
+  if (elOpen) elOpen.innerText = openCount;
+  if (elBilled) elBilled.innerText = billedCount;
+  if (elArch) elArch.innerText = archCount;
+  if (elTotal) elTotal.innerText = allCases.length;
+
+  // 3) Filtros UI
+  const qEl = document.getElementById('search-q');
+  const stEl = document.getElementById('filter-status');
+
+  const q = (qEl ? qEl.value : '').trim().toLowerCase();
+  const st = (stEl ? stEl.value : '').trim();
+
+  // 4) Aplicar filtros
+  let filtered = allCases;
+
+  if (q) {
+    filtered = filtered.filter(c => {
+      const ref = String(c.ref || '').toLowerCase();
+      const client = String(c.client || '').toLowerCase();
+      const matter = String(c.matter || '').toLowerCase();
+      return ref.includes(q) || client.includes(q) || matter.includes(q);
+    });
+  }
+
+  if (st) {
+    filtered = filtered.filter(c => (c.status || '') === st);
+  }
+
+  // 5) Pintar tabla
+  tbody.innerHTML = '';
+
+  filtered.forEach((c, i) => {
+    // OJO: i aquí es el índice del ARRAY FILTRADO, NO del original.
+    // Para que editar/borrar funcione bien, necesitamos el índice real.
+  });
+
+  // Para mantener editar/borrar correctamente:
+  filtered.forEach((c) => {
+    const realIndex = allCases.findIndex(x =>
+      x.ref === c.ref && x.client === c.client && x.matter === c.matter && x.status === c.status
+    );
+
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${escapeHtml(c.ref)}</td>
+      <td>${escapeHtml(c.client)}</td>
+      <td>${escapeHtml(c.matter)}</td>
+      <td>${escapeHtml(c.status)}</td>
+      <td style="text-align:right;">
+        <button class="btn" type="button" onclick="editCase(${realIndex})">Editar</button>
+        <button class="btn" type="button" style="background:#2563eb; margin-left:8px;" onclick="deleteCase(${realIndex})">Borrar</button>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
 }
 
 // Filtrar por estado
