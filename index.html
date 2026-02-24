@@ -219,144 +219,169 @@
     </div>
   </div>
 
-  <script>
-    function showPage(page) {
-      const pages = ['inicio','expedientes','facturacion','agenda','ajustes'];
-      // Ocultar todas
-      pages.forEach(p => {
-        document.getElementById('page-' + p).style.display = 'none';
-        document.getElementById('nav-' + p).classList.remove('active');
-      });
-      // Mostrar elegida
-      document.getElementById('page-' + page).style.display = 'block';
-      document.getElementById('nav-' + page).classList.add('active');
+<script>
+  // ====== EXPEDIENTES (demo con guardado en el navegador) ======
+  const STORAGE_KEY = 'lexcloud_cases_v1';
 
-      // Título arriba
-      const titles = {
-        inicio: 'Inicio',
-        expedientes: 'Expedientes',
-        facturacion: 'Facturación',
-        agenda: 'Agenda',
-        ajustes: 'Ajustes'
-      };
-      document.getElementById('page-title').innerText = titles[page] || 'LexCloud';
+  let editingIndex = null; // null = creando nuevo. numero = editando ese índice.
+
+  function getCases() {
+    try {
+      return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+    } catch (e) {
+      return [];
     }
-// --- EXPEDIENTES (guardar en el navegador) ---
-
-function getCases() {
-  const raw = localStorage.getItem('lexcloud_cases');
-  if (!raw) {
-    const empty = [];
-    localStorage.setItem('lexcloud_cases', JSON.stringify(empty));
-    return empty;
   }
-  try {
-    return JSON.parse(raw) || [];
-  } catch {
-    return [];
+
+  function saveCases(cases) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(cases));
   }
-}
 
-function saveCases(cases) {
-  localStorage.setItem('lexcloud_cases', JSON.stringify(cases));
-}
+  function openCaseForm() {
+    editingIndex = null;
+    document.getElementById('case-form').style.display = 'block';
+    document.getElementById('btn-save-case').innerText = 'Guardar expediente';
 
-function renderCases() {
-  const cases = getCases();
-  const tbody = document.getElementById('cases-tbody');
-  if (!tbody) return;
+    // limpiar campos
+    document.getElementById('f-ref').value = '';
+    document.getElementById('f-client').value = '';
+    document.getElementById('f-matter').value = '';
+    document.getElementById('f-status').value = 'ABIERTO';
+  }
 
-  tbody.innerHTML = "";
+  function cancelCaseForm() {
+    editingIndex = null;
+    document.getElementById('case-form').style.display = 'none';
+  }
 
-  cases.forEach((c, index) => {
-    const tr = document.createElement('tr');
+  function saveCaseFromForm() {
+    const ref = (document.getElementById('f-ref').value || '').trim();
+    const client = (document.getElementById('f-client').value || '').trim();
+    const matter = (document.getElementById('f-matter').value || '').trim();
+    const status = document.getElementById('f-status').value;
 
-    tr.innerHTML = `
-      <td>${c.ref}</td>
-      <td>${c.client}</td>
-      <td>${c.matter}</td>
-      <td>${c.status}</td>
-      <td style="display:flex; gap:8px; justify-content:flex-end;">
-  <button class="btn" style="padding:6px 10px; background:#2563eb;" onclick="editCase(${index})">Editar</button>
-  <button class="btn" style="padding:6px 10px;" onclick="deleteCase(${index})">Borrar</button>
-</td>
-    `;
+    if (!ref || !client || !matter) {
+      alert('Faltan datos: Ref, Cliente y Asunto son obligatorios.');
+      return;
+    }
 
-    tbody.appendChild(tr);
+    const cases = getCases();
+
+    if (editingIndex === null) {
+      // añadir nuevo
+      cases.push({ ref, client, matter, status });
+    } else {
+      // guardar cambios
+      cases[editingIndex] = { ref, client, matter, status };
+    }
+
+    saveCases(cases);
+    renderCases();
+    cancelCaseForm();
+  }
+
+  function editCase(index) {
+    const cases = getCases();
+    const item = cases[index];
+    if (!item) return;
+
+    editingIndex = index;
+    document.getElementById('case-form').style.display = 'block';
+    document.getElementById('btn-save-case').innerText = 'Guardar cambios';
+
+    document.getElementById('f-ref').value = item.ref;
+    document.getElementById('f-client').value = item.client;
+    document.getElementById('f-matter').value = item.matter;
+    document.getElementById('f-status').value = item.status;
+  }
+
+  function deleteCase(index) {
+    if (!confirm('¿Seguro que quieres borrar este expediente?')) return;
+
+    const cases = getCases();
+    cases.splice(index, 1);
+
+    saveCases(cases);
+    renderCases();
+    cancelCaseForm();
+  }
+
+  function renderCases() {
+    const tbody = document.getElementById('cases-tbody');
+    if (!tbody) return;
+
+    const cases = getCases();
+    tbody.innerHTML = '';
+
+    cases.forEach((c, i) => {
+      const tr = document.createElement('tr');
+
+      tr.innerHTML = `
+        <td>${escapeHtml(c.ref)}</td>
+        <td>${escapeHtml(c.client)}</td>
+        <td>${escapeHtml(c.matter)}</td>
+        <td>${escapeHtml(c.status)}</td>
+        <td style="text-align:right;">
+          <button class="btn" onclick="editCase(${i})">Editar</button>
+          <button class="btn" style="background:#2563eb; margin-left:8px;" onclick="deleteCase(${i})">Borrar</button>
+        </td>
+      `;
+
+      tbody.appendChild(tr);
+    });
+  }
+
+  function escapeHtml(text) {
+    return String(text)
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;')
+      .replaceAll("'", '&#039;');
+  }
+
+  // ====== NAVEGACIÓN ======
+  function showPage(page) {
+    const pages = ['inicio', 'expedientes', 'facturacion', 'agenda', 'ajustes'];
+
+    // ocultar todas
+    pages.forEach((p) => {
+      const el = document.getElementById('page-' + p);
+      if (el) el.style.display = 'none';
+
+      const nav = document.getElementById('nav-' + p);
+      if (nav) nav.classList.remove('active');
+    });
+
+    // mostrar elegida
+    const target = document.getElementById('page-' + page);
+    if (target) target.style.display = 'block';
+
+    const navTarget = document.getElementById('nav-' + page);
+    if (navTarget) navTarget.classList.add('active');
+
+    // título arriba
+    const titles = {
+      inicio: 'Inicio',
+      expedientes: 'Expedientes',
+      facturacion: 'Facturación',
+      agenda: 'Agenda',
+      ajustes: 'Ajustes'
+    };
+    const titleEl = document.getElementById('page-title');
+    if (titleEl) titleEl.innerText = titles[page] || 'LexCloud';
+
+    // IMPORTANTÍSIMO: al cambiar de pantalla, NO queremos que el formulario quede abierto “por defecto”
+    if (page !== 'expedientes') {
+      cancelCaseForm();
+    }
+  }
+
+  // Al cargar
+  window.addEventListener('load', function () {
+    renderCases();
+    cancelCaseForm(); // que empiece oculto sí o sí
   });
-}
-
-let editingIndex = null;
-
-function openCaseForm() {
-  editingIndex = null;
-  document.getElementById('case-form').style.display = 'block';
-
-  document.getElementById('f-ref').value = '';
-  document.getElementById('f-client').value = '';
-  document.getElementById('f-matter').value = '';
-  document.getElementById('f-status').value = 'ABIERTO';
-
-  document.getElementById('f-ref').focus();
-}
-
-function cancelCaseForm() {
-  document.getElementById('case-form').style.display = 'none';
-  editingIndex = null;
-}
-
-function saveCaseFromForm() {
-  const ref = (document.getElementById('f-ref').value || '').trim();
-  const client = (document.getElementById('f-client').value || '').trim();
-  const matter = (document.getElementById('f-matter').value || '').trim();
-  const status = document.getElementById('f-status').value || 'ABIERTO';
-
-  if (!ref || !client || !matter) {
-    alert("Faltan datos: Ref, Cliente y Asunto son obligatorios.");
-    return;
-  }
-
-  const cases = getCases();
-
-  if (editingIndex === null) {
-    cases.unshift({ ref, client, matter, status });
-  } else {
-    cases[editingIndex] = { ref, client, matter, status };
-  }
-
-  saveCases(cases);
-  renderCases();
-  cancelCaseForm();
-}
-
-function deleteCase(index) {
-  if (!confirm("¿Seguro que quieres borrar este expediente?")) return;
-
-  const cases = getCases();
-  cases.splice(index, 1);
-
-  saveCases(cases);
-  renderCases();
-}
-function editCase(index) {
-  const cases = getCases();
-  const c = cases[index];
-  if (!c) return;
-
-  editingIndex = index;
-  document.getElementById('case-form').style.display = 'block';
-
-  document.getElementById('f-ref').value = c.ref || '';
-  document.getElementById('f-client').value = c.client || '';
-  document.getElementById('f-matter').value = c.matter || '';
-  document.getElementById('f-status').value = c.status || 'ABIERTO';
-
-  document.getElementById('f-ref').focus();
-}
-// Pintar tabla cuando cargue la página
-window.addEventListener('load', function () {
-  renderCases();
-});
-  </script>
+</script>
 </body>
 </html>
