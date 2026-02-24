@@ -137,6 +137,21 @@
         <h2 style="margin-top:0;">Expedientes</h2>
         <p class="muted">Ejemplo de listado (todavía no guarda datos, es demo).</p>
        <button class="btn" type="button" onclick="openCaseForm()">Nuevo expediente</button>
+<div style="margin-top:12px; display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+  <input id="case-search" placeholder="Buscar (Ref, Cliente, Asunto)" 
+         style="padding:10px; border:1px solid #ddd; border-radius:10px; min-width:260px; flex:1;"
+         oninput="renderCases()">
+
+  <select id="case-status-filter" style="padding:10px; border:1px solid #ddd; border-radius:10px; min-width:180px;"
+          onchange="renderCases()">
+    <option value="TODOS">Todos los estados</option>
+    <option value="ABIERTO">ABIERTO</option>
+    <option value="FACTURADO">FACTURADO</option>
+    <option value="ARCHIVADO">ARCHIVADO</option>
+  </select>
+
+  <button class="btn" type="button" style="background:#6b7280;" onclick="clearCaseFilters()">Limpiar</button>
+</div>
         <div id="case-form" style="display:none; margin-top:12px;">
   <div style="display:flex; gap:10px; flex-wrap:wrap;">
     <input id="f-ref" placeholder="Ref (ej: 2026/003)" style="padding:10px; border:1px solid #ddd; border-radius:10px; min-width:180px;">
@@ -345,7 +360,23 @@
     const tbody = document.getElementById('cases-tbody');
     if (!tbody) return;
 
-    const cases = getCases();
+    let cases = getCases();
+
+// Buscar texto
+const q = (document.getElementById('case-search')?.value || '').trim().toLowerCase();
+if (q) {
+  cases = cases.filter(c =>
+    String(c.ref || '').toLowerCase().includes(q) ||
+    String(c.client || '').toLowerCase().includes(q) ||
+    String(c.matter || '').toLowerCase().includes(q)
+  );
+}
+
+// Filtrar por estado
+const st = document.getElementById('case-status-filter')?.value || 'TODOS';
+if (st !== 'TODOS') {
+  cases = cases.filter(c => String(c.status || '') === st);
+}
     tbody.innerHTML = '';
 
     cases.forEach((c, i) => {
