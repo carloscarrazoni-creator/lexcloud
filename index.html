@@ -136,8 +136,27 @@
       <div class="card" id="page-expedientes" style="display:none;">
         <h2 style="margin-top:0;">Expedientes</h2>
         <p class="muted">Ejemplo de listado (todavía no guarda datos, es demo).</p>
-       <button class="btn" onclick="openNewCase()">Nuevo expediente</button>
-       <div style="height:10px;"></div>
+       <button class="btn" onclick="openCaseForm()">Nuevo expediente</button>
+        <div id="case-form" style="display:none; margin-top:12px;">
+  <div style="display:flex; gap:10px; flex-wrap:wrap;">
+    <input id="f-ref" placeholder="Ref (ej: 2026/003)" style="padding:10px; border:1px solid #ddd; border-radius:10px; min-width:180px;">
+    <input id="f-client" placeholder="Cliente" style="padding:10px; border:1px solid #ddd; border-radius:10px; min-width:220px; flex:1;">
+    <input id="f-matter" placeholder="Asunto" style="padding:10px; border:1px solid #ddd; border-radius:10px; border-radius:10px; min-width:260px; flex:2;">
+    <select id="f-status" style="padding:10px; border:1px solid #ddd; border-radius:10px; min-width:180px;">
+      <option value="ABIERTO">ABIERTO</option>
+      <option value="FACTURADO">FACTURADO</option>
+      <option value="ARCHIVADO">ARCHIVADO</option>
+    </select>
+  </div>
+
+  <div style="margin-top:10px; display:flex; gap:10px; flex-wrap:wrap;">
+    <button class="btn" onclick="saveCaseFromForm()">Guardar expediente</button>
+    <button class="btn" style="background:#6b7280;" onclick="cancelCaseForm()">Cancelar</button>
+  </div>
+
+  <p class="muted" style="margin-top:8px;">Consejo: usa Ref tipo 2026/003. Luego añadiremos autogeneración.</p>
+</div>
+        <div style="height:10px;"></div>
         <table>
          <thead>
            <tr>
@@ -257,39 +276,57 @@ function renderCases() {
       <td>${c.client}</td>
       <td>${c.matter}</td>
       <td>${c.status}</td>
-      <td>
-        <button class="btn" style="padding:6px 10px;" onclick="deleteCase(${index})">
-          Borrar
-        </button>
-      </td>
+      <td style="display:flex; gap:8px; justify-content:flex-end;">
+  <button class="btn" style="padding:6px 10px; background:#2563eb;" onclick="editCase(${index})">Editar</button>
+  <button class="btn" style="padding:6px 10px;" onclick="deleteCase(${index})">Borrar</button>
+</td>
     `;
 
     tbody.appendChild(tr);
   });
 }
 
-function openNewCase() {
-  const ref = prompt("Referencia (ej: 2026/003):");
-  if (!ref) return;
+let editingIndex = null;
 
-  const client = prompt("Cliente:");
-  if (!client) return;
+function openCaseForm() {
+  editingIndex = null;
+  document.getElementById('case-form').style.display = 'block';
 
-  const matter = prompt("Asunto:");
-  if (!matter) return;
+  document.getElementById('f-ref').value = '';
+  document.getElementById('f-client').value = '';
+  document.getElementById('f-matter').value = '';
+  document.getElementById('f-status').value = 'ABIERTO';
 
-  const status = prompt(
-    "Estado (ABIERTO / FACTURADO / ARCHIVADO):",
-    "ABIERTO"
-  ) || "ABIERTO";
+  document.getElementById('f-ref').focus();
+}
+
+function cancelCaseForm() {
+  document.getElementById('case-form').style.display = 'none';
+  editingIndex = null;
+}
+
+function saveCaseFromForm() {
+  const ref = (document.getElementById('f-ref').value || '').trim();
+  const client = (document.getElementById('f-client').value || '').trim();
+  const matter = (document.getElementById('f-matter').value || '').trim();
+  const status = document.getElementById('f-status').value || 'ABIERTO';
+
+  if (!ref || !client || !matter) {
+    alert("Faltan datos: Ref, Cliente y Asunto son obligatorios.");
+    return;
+  }
 
   const cases = getCases();
-  cases.unshift({ ref, client, matter, status });
+
+  if (editingIndex === null) {
+    cases.unshift({ ref, client, matter, status });
+  } else {
+    cases[editingIndex] = { ref, client, matter, status };
+  }
 
   saveCases(cases);
   renderCases();
-
-  alert("Expediente creado correctamente ✅");
+  cancelCaseForm();
 }
 
 function deleteCase(index) {
@@ -301,7 +338,21 @@ function deleteCase(index) {
   saveCases(cases);
   renderCases();
 }
+function editCase(index) {
+  const cases = getCases();
+  const c = cases[index];
+  if (!c) return;
 
+  editingIndex = index;
+  document.getElementById('case-form').style.display = 'block';
+
+  document.getElementById('f-ref').value = c.ref || '';
+  document.getElementById('f-client').value = c.client || '';
+  document.getElementById('f-matter').value = c.matter || '';
+  document.getElementById('f-status').value = c.status || 'ABIERTO';
+
+  document.getElementById('f-ref').focus();
+}
 // Pintar tabla cuando cargue la página
 window.addEventListener('load', function () {
   renderCases();
