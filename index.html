@@ -486,7 +486,7 @@ if (st !== 'TODOS') {
 
   // ====== NAVEGACIÓN ======
   function showPage(page) {
-    const pages = ['inicio', 'expedientes', 'facturacion', 'agenda', 'ajustes'];
+    const pages = ['inicio', 'expedientes', 'ficha', 'facturacion', 'agenda', 'ajustes'];
 
     pages.forEach((p) => {
       const el = document.getElementById('page-' + p);
@@ -501,7 +501,14 @@ if (st !== 'TODOS') {
     const navTarget = document.getElementById('nav-' + page);
     if (navTarget) navTarget.classList.add('active');
 
-    const titles = { inicio:'Inicio', expedientes:'Expedientes', facturacion:'Facturación', agenda:'Agenda', ajustes:'Ajustes' };
+   const titles = {
+  inicio:'Inicio',
+  expedientes:'Expedientes',
+  ficha:'Ficha expediente',
+  facturacion:'Facturación',
+  agenda:'Agenda',
+  ajustes:'Ajustes'
+};
     const titleEl = document.getElementById('page-title');
     if (titleEl) titleEl.innerText = titles[page] || 'LexCloud';
 
