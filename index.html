@@ -1,10 +1,9 @@
-```html
 <!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <title>LexCloud</title>
+  <title>LexCloud (Demo Pro)</title>
   <style>
     body { margin:0; font-family: Arial, sans-serif; background:#f5f7fb; }
     .app { display:flex; height:100vh; }
@@ -56,9 +55,12 @@
       justify-content: space-between;
       align-items:center;
       box-shadow: 0 6px 18px rgba(0,0,0,0.06);
+      gap:12px;
+      flex-wrap:wrap;
     }
     .title { font-size: 18px; font-weight: 700; }
     .user { color:#374151; font-size: 14px; }
+    .top-actions { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
 
     .card {
       margin-top: 16px;
@@ -69,9 +71,20 @@
     }
     .muted { color:#6b7280; }
 
+    /* Inputs */
+    input, select, textarea {
+      font-family: inherit;
+    }
+    .field {
+      padding:10px;
+      border:1px solid #ddd;
+      border-radius:10px;
+    }
+    textarea.field { min-height: 90px; resize: vertical; }
+
     /* Tablas simples */
     table { width:100%; border-collapse: collapse; }
-    th, td { text-align:left; padding:10px; border-bottom: 1px solid #e5e7eb; font-size:14px; }
+    th, td { text-align:left; padding:10px; border-bottom: 1px solid #e5e7eb; font-size:14px; vertical-align: top; }
     th { background:#f9fafb; }
 
     /* Botón */
@@ -81,11 +94,89 @@
       font-weight:600;
     }
     .btn:active { transform: translateY(1px); }
+    .btn.secondary { background:#6b7280; }
+    .btn.dark { background:#111827; }
+
+    /* Chips */
+    .chip {
+      display:inline-block;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background:#eef2ff;
+      color:#3730a3;
+      font-size:12px;
+      font-weight:700;
+    }
+    .chip.green { background:#dcfce7; color:#166534; }
+    .chip.gray { background:#f3f4f6; color:#374151; }
+    .chip.orange { background:#ffedd5; color:#9a3412; }
+
+    /* Login overlay */
+    .overlay {
+      position:fixed; inset:0;
+      background: rgba(17,24,39,0.72);
+      display:none;
+      align-items:center;
+      justify-content:center;
+      padding: 18px;
+      z-index: 9999;
+    }
+    .modal {
+      width: min(520px, 100%);
+      background: white;
+      border-radius: 16px;
+      padding: 16px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.35);
+    }
+    .modal h2 { margin: 0 0 8px 0; }
+    .row { display:flex; gap:10px; flex-wrap:wrap; }
+    .row > * { flex: 1; min-width: 180px; }
+
+    /* Print invoice */
+    @media print {
+      body { background:white; }
+      .sidebar, .topbar, .no-print { display:none !important; }
+      .main { padding:0 !important; }
+      .card { box-shadow:none !important; border-radius:0 !important; margin-top:0 !important; }
+    }
   </style>
 </head>
 
 <body>
-  <div class="app">
+
+  <!-- LOGIN -->
+  <div class="overlay" id="login-overlay">
+    <div class="modal">
+      <div style="display:flex; align-items:center; gap:10px; margin-bottom:6px;">
+        <div class="brand-badge" style="border-radius:12px;">L</div>
+        <div>
+          <div style="font-weight:900; font-size:18px;">LexCloud</div>
+          <div class="muted" style="font-size:13px;">Demo Pro (1 archivo)</div>
+        </div>
+      </div>
+
+      <h2 id="login-title">Acceso</h2>
+      <p class="muted" id="login-subtitle" style="margin-top:6px;">
+        Introduce tu PIN para entrar. (Demo local: se guarda en tu navegador)
+      </p>
+
+      <div class="row" style="margin-top:10px;">
+        <input id="login-username" class="field" placeholder="Usuario (ej: Carlos)" />
+        <input id="login-pin" class="field" placeholder="PIN (4-8 dígitos)" inputmode="numeric" />
+      </div>
+
+      <div style="margin-top:10px; display:flex; gap:10px; flex-wrap:wrap; justify-content:flex-end;">
+        <button class="btn secondary" type="button" onclick="loginDemoGuest()">Entrar sin PIN (demo)</button>
+        <button class="btn" type="button" onclick="loginSubmit()">Entrar</button>
+      </div>
+
+      <div class="muted" style="font-size:12px; margin-top:10px;">
+        Nota: esto es un “pseudo-login” para demo. No es seguridad real (no hay servidor).
+      </div>
+    </div>
+  </div>
+
+  <div class="app" id="app-root" style="display:none;">
     <!-- Menú -->
     <div class="sidebar">
       <div class="brand">
@@ -112,8 +203,8 @@
       </div>
 
       <div style="margin-top:18px; font-size:12px; color:#9ca3af;">
-        Versión prueba (gratis)<br>
-        Acceso desde móvil/PC/tablet
+        Versión demo (localStorage)<br>
+        Acceso desde móvil/PC/tablet (mismo navegador)
       </div>
     </div>
 
@@ -121,19 +212,46 @@
     <div class="main">
       <div class="topbar">
         <div class="title" id="page-title">Inicio</div>
-        <div class="user">Usuario: <b>Carlos</b></div>
+
+        <div class="top-actions">
+          <button class="btn secondary no-print" type="button" onclick="exportAllJSON()">Exportar JSON</button>
+          <button class="btn secondary no-print" type="button" onclick="openImportDialog()">Importar JSON</button>
+          <button class="btn dark no-print" type="button" onclick="logout()">Salir</button>
+        </div>
+
+        <div class="user">Usuario: <b id="ui-user">-</b></div>
       </div>
 
       <!-- INICIO -->
       <div class="card" id="page-inicio">
-        <h2 style="margin-top:0;">Hola Carlos 👋</h2>
+        <h2 style="margin-top:0;">Hola <span id="hello-user">👋</span></h2>
         <p class="muted">
-          Esto ya parece un programa. Ahora iremos añadiendo funcionalidades reales:
-          login, expedientes, agenda y facturación.
+          Esto es una demo “Pro” en un solo archivo:
+          <b>expedientes</b>, <b>ficha</b> con actuaciones, documentos (referencias), <b>agenda</b>, <b>facturas</b> y export/import JSON.
         </p>
-        <button class="btn" onclick="alert('Perfecto. Siguiente paso: ficha de expediente con actuaciones + documentos.')">
-          Siguiente paso
-        </button>
+
+        <div style="display:flex; gap:10px; flex-wrap:wrap;">
+          <button class="btn" type="button" onclick="showPage('expedientes')">Ir a Expedientes</button>
+          <button class="btn" type="button" onclick="showPage('agenda')">Ir a Agenda</button>
+          <button class="btn" type="button" onclick="showPage('facturacion')">Ir a Facturación</button>
+        </div>
+
+        <div class="card" style="margin-top:14px; box-shadow:none; border:1px solid #e5e7eb;">
+          <div style="display:flex; gap:10px; flex-wrap:wrap;">
+            <div style="flex:1; min-width:220px;">
+              <div class="muted" style="font-size:12px;">Expedientes</div>
+              <div style="font-size:20px; font-weight:800;" id="home-kpi-cases">0</div>
+            </div>
+            <div style="flex:1; min-width:220px;">
+              <div class="muted" style="font-size:12px;">Eventos (próx. 7 días)</div>
+              <div style="font-size:20px; font-weight:800;" id="home-kpi-events">0</div>
+            </div>
+            <div style="flex:1; min-width:220px;">
+              <div class="muted" style="font-size:12px;">Facturas</div>
+              <div style="font-size:20px; font-weight:800;" id="home-kpi-invoices">0</div>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- EXPEDIENTES -->
@@ -141,30 +259,27 @@
         <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;">
           <div>
             <h2 style="margin:0;">Expedientes</h2>
-            <p class="muted" style="margin:6px 0 0 0;">Listado demo (guarda en tu navegador con localStorage).</p>
+            <p class="muted" style="margin:6px 0 0 0;">Listado con guardado local (por usuario).</p>
           </div>
           <button class="btn" type="button" onclick="openCaseForm()">Nuevo expediente</button>
         </div>
 
-        <!-- Barra de búsqueda + filtro -->
+        <!-- Búsqueda + filtro -->
         <div style="margin-top:12px; display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
-          <input id="search-q" placeholder="Buscar (ref, cliente o asunto)"
-                 style="padding:10px; border:1px solid #ddd; border-radius:10px; min-width:260px; flex:1;"
-                 oninput="renderCases()">
+          <input id="search-q" class="field" placeholder="Buscar (ref, cliente o asunto)"
+                 style="min-width:260px; flex:1;" oninput="renderCases()">
 
-          <select id="filter-status"
-                  style="padding:10px; border:1px solid #ddd; border-radius:10px; min-width:200px;"
-                  onchange="renderCases()">
+          <select id="filter-status" class="field" style="min-width:220px;" onchange="renderCases()">
             <option value="">Todos los estados</option>
             <option value="ABIERTO">ABIERTO</option>
             <option value="FACTURADO">FACTURADO</option>
             <option value="ARCHIVADO">ARCHIVADO</option>
           </select>
 
-          <button class="btn" type="button" style="background:#6b7280;" onclick="clearCaseFilters()">Limpiar</button>
+          <button class="btn secondary" type="button" onclick="clearCaseFilters()">Limpiar</button>
         </div>
 
-        <!-- Contadores -->
+        <!-- KPIs -->
         <div style="margin-top:10px; display:flex; gap:10px; flex-wrap:wrap;">
           <div class="card" style="margin:0; padding:10px 12px; box-shadow:none; border:1px solid #e5e7eb;">
             <b>Abiertos:</b> <span id="kpi-open">0</span>
@@ -180,30 +295,25 @@
           </div>
         </div>
 
-        <!-- Formulario alta/edición -->
-        <div id="case-form" style="display:none; margin-top:12px;">
-          <div style="display:flex; gap:10px; flex-wrap:wrap;">
-            <input id="f-ref" placeholder="Ref (ej: 2026/003)"
-                   style="padding:10px; border:1px solid #ddd; border-radius:10px; min-width:180px;">
-            <input id="f-client" placeholder="Cliente"
-                   style="padding:10px; border:1px solid #ddd; border-radius:10px; min-width:220px; flex:1;">
-            <input id="f-matter" placeholder="Asunto"
-                   style="padding:10px; border:1px solid #ddd; border-radius:10px; min-width:260px; flex:2;">
-            <select id="f-status" style="padding:10px; border:1px solid #ddd; border-radius:10px; min-width:180px;">
+        <!-- Form alta/edición -->
+        <div id="case-form" style="display:none; margin-top:12px;" class="no-print">
+          <div class="row">
+            <input id="f-ref" class="field" placeholder="Ref (ej: 2026/003)">
+            <input id="f-client" class="field" placeholder="Cliente">
+          </div>
+          <div class="row" style="margin-top:10px;">
+            <input id="f-matter" class="field" placeholder="Asunto">
+            <select id="f-status" class="field">
               <option value="ABIERTO">ABIERTO</option>
               <option value="FACTURADO">FACTURADO</option>
               <option value="ARCHIVADO">ARCHIVADO</option>
             </select>
           </div>
-
           <div style="margin-top:10px; display:flex; gap:10px; flex-wrap:wrap;">
-            <button class="btn" id="btn-save-case" type="button" onclick="saveCaseFromForm()">Guardar expediente</button>
-            <button class="btn" type="button" style="background:#6b7280;" onclick="cancelCaseForm()">Cancelar</button>
+            <button class="btn" id="btn-save-case" type="button" onclick="saveCaseFromForm()">Guardar</button>
+            <button class="btn secondary" type="button" onclick="cancelCaseForm()">Cancelar</button>
           </div>
-
-          <p class="muted" style="margin-top:8px;">
-            Consejo: usa Ref tipo 2026/003. Ahora mismo autogenera la siguiente referencia al abrir el formulario.
-          </p>
+          <p class="muted" style="margin-top:8px;">Ref recomendada: 2026/003. Se autogenera al abrir el formulario (puedes editarla).</p>
         </div>
 
         <div style="height:10px;"></div>
@@ -225,352 +335,1669 @@
       <!-- FICHA EXPEDIENTE -->
       <div class="card" id="page-ficha" style="display:none;">
         <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
-          <h2 style="margin:0;">Ficha expediente</h2>
-          <button class="btn" type="button" onclick="goBackToCases()" style="background:#6b7280;">
-            ← Volver a Expedientes
-          </button>
+          <div>
+            <h2 style="margin:0;">Ficha expediente</h2>
+            <p class="muted" id="ficha-subtitle" style="margin:6px 0 0 0;">-</p>
+          </div>
+          <div style="display:flex; gap:8px; flex-wrap:wrap;" class="no-print">
+            <button class="btn secondary" type="button" onclick="goBackToCases()">← Volver</button>
+            <button class="btn dark" type="button" onclick="openInvoiceFromCurrentCase()">Crear factura</button>
+          </div>
         </div>
-
-        <p class="muted" id="ficha-subtitle" style="margin-top:8px;">Cargando...</p>
 
         <div style="display:flex; gap:12px; flex-wrap:wrap; margin-top:12px;">
           <div class="card" style="margin:0; padding:12px; box-shadow:none; border:1px solid #e5e7eb; flex:1; min-width:240px;">
-            <b>Ref</b><br>
-            <span id="ficha-ref">-</span>
+            <b>Ref</b><br><span id="ficha-ref">-</span>
           </div>
-
           <div class="card" style="margin:0; padding:12px; box-shadow:none; border:1px solid #e5e7eb; flex:2; min-width:240px;">
-            <b>Cliente</b><br>
-            <span id="ficha-client">-</span>
+            <b>Cliente</b><br><span id="ficha-client">-</span>
           </div>
-
           <div class="card" style="margin:0; padding:12px; box-shadow:none; border:1px solid #e5e7eb; flex:3; min-width:240px;">
-            <b>Asunto</b><br>
-            <span id="ficha-matter">-</span>
+            <b>Asunto</b><br><span id="ficha-matter">-</span>
           </div>
-
           <div class="card" style="margin:0; padding:12px; box-shadow:none; border:1px solid #e5e7eb; flex:1; min-width:200px;">
-            <b>Estado</b><br>
-            <span id="ficha-status">-</span>
+            <b>Estado</b><br><span id="ficha-status">-</span>
           </div>
         </div>
 
-        <div style="margin-top:14px;">
-          <h3 style="margin:0 0 8px 0;">Próximamente</h3>
-          <ul class="muted" style="margin-top:0;">
-            <li>Actuaciones / notas</li>
-            <li>Documentos</li>
-            <li>Agenda vinculada</li>
-            <li>Facturas del expediente</li>
-          </ul>
+        <!-- Actuaciones -->
+        <div class="card" style="margin-top:14px; box-shadow:none; border:1px solid #e5e7eb;">
+          <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
+            <h3 style="margin:0;">Actuaciones / notas</h3>
+            <span class="muted" style="font-size:12px;">Se guardan por expediente</span>
+          </div>
+
+          <div class="row no-print" style="margin-top:10px;">
+            <input id="act-date" class="field" type="date">
+            <input id="act-title" class="field" placeholder="Título (ej: Llamada cliente / Presentación escrito)">
+          </div>
+          <textarea id="act-notes" class="field no-print" style="margin-top:10px; width:100%;" placeholder="Notas / detalle..."></textarea>
+
+          <div style="margin-top:10px; display:flex; gap:10px; flex-wrap:wrap;" class="no-print">
+            <button class="btn" type="button" onclick="addActuation()">Añadir actuación</button>
+            <button class="btn secondary" type="button" onclick="clearActuationForm()">Limpiar</button>
+          </div>
+
+          <div style="margin-top:12px;">
+            <table>
+              <thead>
+                <tr>
+                  <th style="width:120px;">Fecha</th>
+                  <th>Título</th>
+                  <th>Notas</th>
+                  <th style="width:140px; text-align:right;">Acciones</th>
+                </tr>
+              </thead>
+              <tbody id="acts-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Documentos (referencias) -->
+        <div class="card" style="margin-top:14px; box-shadow:none; border:1px solid #e5e7eb;">
+          <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
+            <h3 style="margin:0;">Documentos (referencias)</h3>
+            <span class="muted" style="font-size:12px;">Demo: aquí no se suben archivos, solo se registran</span>
+          </div>
+
+          <div class="row no-print" style="margin-top:10px;">
+            <input id="doc-name" class="field" placeholder="Nombre (ej: Demanda.pdf)">
+            <input id="doc-note" class="field" placeholder="Nota (ej: Presentada en LexNET)">
+          </div>
+
+          <div style="margin-top:10px; display:flex; gap:10px; flex-wrap:wrap;" class="no-print">
+            <button class="btn" type="button" onclick="addDocumentRef()">Añadir documento</button>
+            <button class="btn secondary" type="button" onclick="clearDocForm()">Limpiar</button>
+          </div>
+
+          <div style="margin-top:12px;">
+            <table>
+              <thead>
+                <tr>
+                  <th style="width:170px;">Fecha</th>
+                  <th>Documento</th>
+                  <th>Nota</th>
+                  <th style="width:140px; text-align:right;">Acciones</th>
+                </tr>
+              </thead>
+              <tbody id="docs-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Agenda vinculada -->
+        <div class="card" style="margin-top:14px; box-shadow:none; border:1px solid #e5e7eb;">
+          <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
+            <h3 style="margin:0;">Agenda vinculada</h3>
+            <span class="muted" style="font-size:12px;">Eventos relacionados con este expediente</span>
+          </div>
+
+          <div class="row no-print" style="margin-top:10px;">
+            <input id="ev-date" class="field" type="date">
+            <input id="ev-time" class="field" type="time">
+          </div>
+          <div class="row no-print" style="margin-top:10px;">
+            <input id="ev-title" class="field" placeholder="Título (ej: Vista / Plazo / Reunión)">
+            <input id="ev-place" class="field" placeholder="Lugar (opcional)">
+          </div>
+
+          <div style="margin-top:10px; display:flex; gap:10px; flex-wrap:wrap;" class="no-print">
+            <button class="btn" type="button" onclick="addEventForCurrentCase()">Añadir evento</button>
+            <button class="btn secondary" type="button" onclick="clearEventForm()">Limpiar</button>
+          </div>
+
+          <div style="margin-top:12px;">
+            <table>
+              <thead>
+                <tr>
+                  <th style="width:150px;">Fecha/hora</th>
+                  <th>Título</th>
+                  <th>Lugar</th>
+                  <th style="width:140px; text-align:right;">Acciones</th>
+                </tr>
+              </thead>
+              <tbody id="case-events-tbody"></tbody>
+            </table>
+          </div>
         </div>
       </div>
 
       <!-- FACTURACIÓN -->
       <div class="card" id="page-facturacion" style="display:none;">
-        <h2 style="margin-top:0;">Facturación</h2>
-        <p class="muted">Ejemplo de factura con IVA/IRPF (demo).</p>
-        <table>
-          <thead>
-            <tr>
-              <th>Nº</th>
-              <th>Concepto</th>
-              <th>Base</th>
-              <th>IVA</th>
-              <th>IRPF</th>
-              <th>Total</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>A-0001</td>
-              <td>Honorarios asunto 2026/001</td>
-              <td>1.000,00 €</td>
-              <td>210,00 €</td>
-              <td>-150,00 €</td>
-              <td>1.060,00 €</td>
-            </tr>
-          </tbody>
-        </table>
+        <div style="display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; align-items:flex-end;">
+          <div>
+            <h2 style="margin:0;">Facturación</h2>
+            <p class="muted" style="margin:6px 0 0 0;">Facturas demo por usuario. Puedes imprimir como PDF (Ctrl+P).</p>
+          </div>
+          <button class="btn" type="button" onclick="openInvoiceForm()">Nueva factura</button>
+        </div>
+
+        <!-- Filtros -->
+        <div style="margin-top:12px; display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+          <input id="inv-search" class="field" placeholder="Buscar (nº, cliente, ref, concepto)" style="min-width:280px; flex:1;" oninput="renderInvoices()">
+          <select id="inv-filter" class="field" style="min-width:220px;" onchange="renderInvoices()">
+            <option value="">Todas</option>
+            <option value="BORRADOR">BORRADOR</option>
+            <option value="EMITIDA">EMITIDA</option>
+            <option value="COBRADA">COBRADA</option>
+          </select>
+          <button class="btn secondary" type="button" onclick="clearInvoiceFilters()">Limpiar</button>
+        </div>
+
+        <!-- Form factura -->
+        <div id="invoice-form" class="card no-print" style="display:none; margin-top:12px; box-shadow:none; border:1px solid #e5e7eb;">
+          <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
+            <h3 style="margin:0;">Editar factura</h3>
+            <span class="muted" style="font-size:12px;">IVA/IRPF configurables. Total = Base + IVA - IRPF</span>
+          </div>
+
+          <div class="row" style="margin-top:10px;">
+            <input id="inv-number" class="field" placeholder="Número (ej: A-0001)">
+            <input id="inv-date" class="field" type="date">
+          </div>
+
+          <div class="row" style="margin-top:10px;">
+            <input id="inv-client" class="field" placeholder="Cliente">
+            <input id="inv-ref" class="field" placeholder="Ref expediente (opcional)">
+          </div>
+
+          <div style="margin-top:10px;">
+            <input id="inv-concept" class="field" style="width:100%;" placeholder="Concepto / descripción (ej: Honorarios asunto 2026/001)">
+          </div>
+
+          <div class="row" style="margin-top:10px;">
+            <input id="inv-base" class="field" type="number" step="0.01" placeholder="Base (€)">
+            <input id="inv-iva" class="field" type="number" step="0.01" placeholder="IVA % (ej: 21)">
+          </div>
+
+          <div class="row" style="margin-top:10px;">
+            <input id="inv-irpf" class="field" type="number" step="0.01" placeholder="IRPF % (ej: 15)">
+            <select id="inv-status" class="field">
+              <option value="BORRADOR">BORRADOR</option>
+              <option value="EMITIDA">EMITIDA</option>
+              <option value="COBRADA">COBRADA</option>
+            </select>
+          </div>
+
+          <div style="margin-top:10px; display:flex; gap:10px; flex-wrap:wrap;">
+            <button class="btn" type="button" onclick="saveInvoiceFromForm()">Guardar factura</button>
+            <button class="btn secondary" type="button" onclick="cancelInvoiceForm()">Cancelar</button>
+          </div>
+
+          <div class="muted" style="margin-top:10px; font-size:13px;">
+            <b>Previsualización:</b>
+            Base <span id="pv-base">0,00 €</span> · IVA <span id="pv-iva">0,00 €</span> · IRPF <span id="pv-irpf">0,00 €</span> ·
+            <b>Total <span id="pv-total">0,00 €</span></b>
+          </div>
+        </div>
+
+        <!-- Tabla facturas -->
+        <div style="margin-top:12px;">
+          <table>
+            <thead>
+              <tr>
+                <th style="width:120px;">Nº</th>
+                <th style="width:110px;">Fecha</th>
+                <th>Cliente / Concepto</th>
+                <th style="width:140px;">Ref</th>
+                <th style="width:120px;">Estado</th>
+                <th style="width:130px; text-align:right;">Total</th>
+                <th style="width:240px; text-align:right;">Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="invoices-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- VISTA IMPRESIÓN FACTURA -->
+      <div class="card" id="page-invoice-print" style="display:none;">
+        <div class="no-print" style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
+          <h2 style="margin:0;">Factura</h2>
+          <div style="display:flex; gap:8px; flex-wrap:wrap;">
+            <button class="btn secondary" type="button" onclick="showPage('facturacion')">← Volver</button>
+            <button class="btn" type="button" onclick="window.print()">Imprimir / Guardar PDF</button>
+          </div>
+        </div>
+
+        <div id="print-area" style="margin-top:12px;">
+          <div style="display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap;">
+            <div>
+              <div style="font-weight:900; font-size:22px;">LEXCLOUD</div>
+              <div class="muted">Demo Pro · Facturación</div>
+            </div>
+            <div style="text-align:right;">
+              <div style="font-weight:900; font-size:20px;" id="p-number">-</div>
+              <div class="muted" id="p-date">-</div>
+            </div>
+          </div>
+
+          <div style="margin-top:14px; border-top:1px solid #e5e7eb; padding-top:12px;">
+            <div class="muted" style="font-size:12px;">Cliente</div>
+            <div style="font-size:16px; font-weight:800;" id="p-client">-</div>
+            <div class="muted" style="margin-top:6px;" id="p-ref">Ref: -</div>
+          </div>
+
+          <div style="margin-top:14px;">
+            <table>
+              <thead>
+                <tr>
+                  <th>Concepto</th>
+                  <th style="width:140px; text-align:right;">Base</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td id="p-concept">-</td>
+                  <td style="text-align:right;" id="p-base">-</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div style="margin-top:14px; display:flex; justify-content:flex-end;">
+            <div style="width:min(420px,100%); border:1px solid #e5e7eb; border-radius:12px; padding:12px;">
+              <div style="display:flex; justify-content:space-between; padding:6px 0;">
+                <span class="muted">Base</span>
+                <b id="p-s-base">-</b>
+              </div>
+              <div style="display:flex; justify-content:space-between; padding:6px 0;">
+                <span class="muted">IVA</span>
+                <b id="p-s-iva">-</b>
+              </div>
+              <div style="display:flex; justify-content:space-between; padding:6px 0;">
+                <span class="muted">IRPF</span>
+                <b id="p-s-irpf">-</b>
+              </div>
+              <div style="display:flex; justify-content:space-between; padding:10px 0; border-top:1px solid #e5e7eb; margin-top:6px;">
+                <span style="font-size:16px; font-weight:900;">TOTAL</span>
+                <span style="font-size:16px; font-weight:900;" id="p-s-total">-</span>
+              </div>
+              <div class="muted" style="font-size:12px; margin-top:6px;">
+                Total = Base + IVA - IRPF
+              </div>
+            </div>
+          </div>
+
+          <div class="muted" style="margin-top:14px; font-size:12px;">
+            Estado: <span id="p-status">-</span>
+          </div>
+        </div>
       </div>
 
       <!-- AGENDA -->
       <div class="card" id="page-agenda" style="display:none;">
-        <h2 style="margin-top:0;">Agenda</h2>
-        <p class="muted">Ejemplo (demo):</p>
-        <ul>
-          <li><b>27/02</b> — Vista en Juzgado 1</li>
-          <li><b>01/03</b> — Plazo contestación demanda (2026/001)</li>
-          <li><b>05/03</b> — Reunión cliente B</li>
-        </ul>
+        <div style="display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; align-items:flex-end;">
+          <div>
+            <h2 style="margin:0;">Agenda</h2>
+            <p class="muted" style="margin:6px 0 0 0;">Eventos (pueden estar vinculados a un expediente).</p>
+          </div>
+          <button class="btn" type="button" onclick="openAgendaForm()">Nuevo evento</button>
+        </div>
+
+        <div style="margin-top:12px; display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+          <input id="ag-search" class="field" placeholder="Buscar (título, ref, lugar)" style="min-width:280px; flex:1;" oninput="renderAgenda()">
+          <button class="btn secondary" type="button" onclick="clearAgendaFilters()">Limpiar</button>
+        </div>
+
+        <div id="agenda-form" class="card no-print" style="display:none; margin-top:12px; box-shadow:none; border:1px solid #e5e7eb;">
+          <h3 style="margin:0;">Editar evento</h3>
+
+          <div class="row" style="margin-top:10px;">
+            <input id="ag-date" class="field" type="date">
+            <input id="ag-time" class="field" type="time">
+          </div>
+
+          <div class="row" style="margin-top:10px;">
+            <input id="ag-title" class="field" placeholder="Título (ej: Vista / Plazo / Reunión)">
+            <input id="ag-place" class="field" placeholder="Lugar (opcional)">
+          </div>
+
+          <div style="margin-top:10px;">
+            <select id="ag-case" class="field" style="width:100%;"></select>
+            <div class="muted" style="font-size:12px; margin-top:6px;">Vincula el evento a un expediente (opcional).</div>
+          </div>
+
+          <div style="margin-top:10px; display:flex; gap:10px; flex-wrap:wrap;">
+            <button class="btn" type="button" onclick="saveAgendaFromForm()">Guardar</button>
+            <button class="btn secondary" type="button" onclick="cancelAgendaForm()">Cancelar</button>
+          </div>
+        </div>
+
+        <div style="margin-top:12px;">
+          <table>
+            <thead>
+              <tr>
+                <th style="width:160px;">Fecha/hora</th>
+                <th>Título</th>
+                <th style="width:180px;">Ref</th>
+                <th style="width:200px;">Lugar</th>
+                <th style="width:220px; text-align:right;">Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="agenda-tbody"></tbody>
+          </table>
+        </div>
       </div>
 
       <!-- AJUSTES -->
       <div class="card" id="page-ajustes" style="display:none;">
         <h2 style="margin-top:0;">Ajustes</h2>
-        <p class="muted">
-          Aquí irán: usuarios, permisos, series de facturación, IRPF por defecto, copias de seguridad, etc.
-        </p>
+
+        <div class="card" style="margin-top:12px; box-shadow:none; border:1px solid #e5e7eb;">
+          <h3 style="margin:0;">Usuario</h3>
+          <p class="muted" style="margin-top:6px;">Cambia el PIN (demo local) y valores por defecto.</p>
+
+          <div class="row">
+            <input id="set-user" class="field" placeholder="Nombre usuario">
+            <input id="set-pin" class="field" placeholder="Nuevo PIN (4-8 dígitos)" inputmode="numeric">
+          </div>
+
+          <div class="row" style="margin-top:10px;">
+            <input id="set-iva" class="field" type="number" step="0.01" placeholder="IVA % por defecto (ej: 21)">
+            <input id="set-irpf" class="field" type="number" step="0.01" placeholder="IRPF % por defecto (ej: 15)">
+          </div>
+
+          <div style="margin-top:10px; display:flex; gap:10px; flex-wrap:wrap;">
+            <button class="btn" type="button" onclick="saveSettings()">Guardar ajustes</button>
+            <button class="btn secondary" type="button" onclick="resetAllData()">Borrar TODOS mis datos (peligro)</button>
+          </div>
+
+          <div class="muted" style="font-size:12px; margin-top:10px;">
+            Nota: “Borrar datos” elimina expedientes, actuaciones, docs, agenda y facturas de este usuario en este navegador.
+          </div>
+        </div>
       </div>
+
+      <!-- IMPORT DIALOG (simple) -->
+      <div class="overlay" id="import-overlay">
+        <div class="modal">
+          <h2>Importar JSON</h2>
+          <p class="muted" style="margin-top:6px;">
+            Pega aquí el JSON exportado. Se reemplazarán tus datos actuales de este usuario.
+          </p>
+          <textarea id="import-text" class="field" style="width:100%; min-height:180px;"></textarea>
+          <div style="margin-top:10px; display:flex; gap:10px; justify-content:flex-end; flex-wrap:wrap;">
+            <button class="btn secondary" type="button" onclick="closeImportDialog()">Cancelar</button>
+            <button class="btn" type="button" onclick="importAllJSON()">Importar</button>
+          </div>
+        </div>
+      </div>
+
     </div>
   </div>
 
-  <script>
-    // ====== EXPEDIENTES (demo con guardado en el navegador) ======
-    const STORAGE_KEY = 'lexcloud_cases_v1';
-    let editingIndex = null;
-    let currentCaseIndex = null;
+<script>
+/* ===========================
+   LexCloud Demo Pro (1 HTML)
+   - Pseudo-login por PIN
+   - Expedientes + Ficha (actuaciones, docs refs, agenda por expediente)
+   - Agenda global
+   - Facturas (IVA/IRPF) + impresión (Ctrl+P)
+   - Export/Import JSON
+   =========================== */
 
-    function getCases() {
-      try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); }
-      catch { return []; }
+  // ---- Session (demo) ----
+  const SESSION_KEY = 'lexcloud_demo_session_v1';
+  const USERS_KEY = 'lexcloud_demo_users_v1';
+
+  // ---- Data per user ----
+  // Se guarda por usuario (namespace) para no mezclar datos
+  function nsKey(base) {
+    const u = getSession()?.user || 'guest';
+    return `${base}__user_${u}`;
+  }
+
+  // Storage keys
+  const KEY_CASES     = () => nsKey('lexcloud_cases_v2');
+  const KEY_ACTS      = () => nsKey('lexcloud_case_acts_v1');     // map {caseId: [acts]}
+  const KEY_DOCS      = () => nsKey('lexcloud_case_docs_v1');     // map {caseId: [docs]}
+  const KEY_EVENTS    = () => nsKey('lexcloud_events_v1');        // list of events (global)
+  const KEY_INVOICES  = () => nsKey('lexcloud_invoices_v1');      // list of invoices
+  const KEY_SETTINGS  = () => nsKey('lexcloud_settings_v1');      // defaults
+
+  // Ref counter (per year per user)
+  function KEY_REF_COUNTER(year) { return nsKey(`lexcloud_ref_counter_${year}`); }
+  function KEY_INV_COUNTER(year) { return nsKey(`lexcloud_inv_counter_${year}`); }
+
+  // UI state
+  let editingCaseId = null;
+  let currentCaseId = null;
+
+  let editingInvoiceId = null;
+  let printingInvoiceId = null;
+
+  let editingAgendaId = null;
+
+  // Helpers
+  function nowISODate() {
+    const d = new Date();
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth()+1).padStart(2,'0');
+    const dd = String(d.getDate()).padStart(2,'0');
+    return `${yyyy}-${mm}-${dd}`;
+  }
+
+  function escapeHtml(text) {
+    return String(text ?? '')
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;')
+      .replaceAll("'", '&#039;');
+  }
+
+  function uid() {
+    return 'id_' + Math.random().toString(16).slice(2) + '_' + Date.now().toString(16);
+  }
+
+  function toNumber(x) {
+    const n = Number(String(x).replace(',', '.'));
+    return Number.isFinite(n) ? n : 0;
+  }
+
+  function eur(n) {
+    const val = (Number.isFinite(n) ? n : 0);
+    return val.toLocaleString('es-ES', { style:'currency', currency:'EUR' });
+  }
+
+  function badgeForStatus(status) {
+    const s = String(status||'').toUpperCase();
+    if (s === 'ABIERTO') return `<span class="chip green">ABIERTO</span>`;
+    if (s === 'FACTURADO') return `<span class="chip orange">FACTURADO</span>`;
+    if (s === 'ARCHIVADO') return `<span class="chip gray">ARCHIVADO</span>`;
+    if (s === 'BORRADOR') return `<span class="chip gray">BORRADOR</span>`;
+    if (s === 'EMITIDA') return `<span class="chip orange">EMITIDA</span>`;
+    if (s === 'COBRADA') return `<span class="chip green">COBRADA</span>`;
+    return `<span class="chip gray">${escapeHtml(s || '-')}</span>`;
+  }
+
+  // ===== Users / session =====
+  function getUsers() {
+    try { return JSON.parse(localStorage.getItem(USERS_KEY) || '{}'); }
+    catch { return {}; }
+  }
+  function saveUsers(users) {
+    localStorage.setItem(USERS_KEY, JSON.stringify(users));
+  }
+
+  function getSession() {
+    try { return JSON.parse(localStorage.getItem(SESSION_KEY) || 'null'); }
+    catch { return null; }
+  }
+  function setSession(sess) {
+    localStorage.setItem(SESSION_KEY, JSON.stringify(sess));
+  }
+  function clearSession() {
+    localStorage.removeItem(SESSION_KEY);
+  }
+
+  // Demo PIN check (NO seguridad real)
+  function ensureUserExists(username) {
+    const users = getUsers();
+    if (!users[username]) {
+      users[username] = { pin: '', createdAt: Date.now() };
+      saveUsers(users);
     }
+    return users[username];
+  }
 
-    function saveCases(cases) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(cases));
-    }
+  function loginDemoGuest() {
+    const username = (document.getElementById('login-username')?.value || 'Carlos').trim() || 'Carlos';
+    ensureUserExists(username);
+    setSession({ user: username, loggedIn: true });
+    bootApp();
+  }
 
-    // ---- NUMERACIÓN (solo avanza al guardar) ----
-    function peekNextRef() {
-      const year = new Date().getFullYear();
-      const key = `lexcloud_ref_counter_${year}`;
-      const counter = parseInt(localStorage.getItem(key) || "0", 10);
-      const next = counter + 1;
-      return `${year}/${String(next).padStart(3, "0")}`;
-    }
+  function loginSubmit() {
+    const username = (document.getElementById('login-username')?.value || '').trim();
+    const pin = (document.getElementById('login-pin')?.value || '').trim();
 
-    function commitNextRef(ref) {
-      const m = String(ref).match(/^(\d{4})\/(\d{3})$/);
-      if (!m) return;
-      const year = m[1];
-      const num = parseInt(m[2], 10);
+    if (!username) { alert('Escribe un usuario (ej: Carlos).'); return; }
+    ensureUserExists(username);
 
-      const key = `lexcloud_ref_counter_${year}`;
-      const current = parseInt(localStorage.getItem(key) || "0", 10);
-      if (num > current) localStorage.setItem(key, String(num));
-    }
+    const users = getUsers();
+    const u = users[username] || { pin: '' };
 
-    function openCaseForm() {
-      editingIndex = null;
-      const form = document.getElementById('case-form');
-      if (form) form.style.display = 'block';
-
-      const refEl = document.getElementById('f-ref');
-      const clientEl = document.getElementById('f-client');
-      const matterEl = document.getElementById('f-matter');
-      const statusEl = document.getElementById('f-status');
-
-      if (refEl) refEl.value = peekNextRef();
-      if (clientEl) clientEl.value = '';
-      if (matterEl) matterEl.value = '';
-      if (statusEl) statusEl.value = 'ABIERTO';
-
-      clientEl?.focus();
-    }
-
-    function cancelCaseForm() {
-      editingIndex = null;
-      const form = document.getElementById('case-form');
-      if (form) form.style.display = 'none';
-    }
-
-    function saveCaseFromForm() {
-      const ref = (document.getElementById('f-ref')?.value || '').trim();
-      const client = (document.getElementById('f-client')?.value || '').trim();
-      const matter = (document.getElementById('f-matter')?.value || '').trim();
-      const status = document.getElementById('f-status')?.value || 'ABIERTO';
-
-      if (!ref || !client || !matter) {
-        alert('Faltan datos: Ref, Cliente y Asunto son obligatorios.');
+    // Si el usuario no tiene PIN, permitimos crear uno “al entrar”
+    if (!u.pin) {
+      if (!/^\d{4,8}$/.test(pin)) {
+        alert('Este usuario no tiene PIN. Escribe uno de 4 a 8 dígitos para crearlo.');
         return;
       }
-
-      const cases = getCases();
-
-      // Evitar duplicados por referencia
-      const duplicated = cases.some((c, i) => c.ref === ref && i !== editingIndex);
-      if (duplicated) {
-        alert("Esa referencia ya existe. Usa otra.");
-        return;
-      }
-
-      if (editingIndex === null) cases.push({ ref, client, matter, status });
-      else cases[editingIndex] = { ref, client, matter, status };
-
-      commitNextRef(ref);
-      saveCases(cases);
-      renderCases();
-      cancelCaseForm();
+      u.pin = pin;
+      users[username] = u;
+      saveUsers(users);
+      setSession({ user: username, loggedIn: true });
+      bootApp();
+      return;
     }
 
-    function editCase(index) {
-      const cases = getCases();
-      const item = cases[index];
-      if (!item) return;
-
-      editingIndex = index;
-      const form = document.getElementById('case-form');
-      if (form) form.style.display = 'block';
-
-      document.getElementById('f-ref').value = item.ref || '';
-      document.getElementById('f-client').value = item.client || '';
-      document.getElementById('f-matter').value = item.matter || '';
-      document.getElementById('f-status').value = item.status || 'ABIERTO';
-
-      document.getElementById('f-client')?.focus();
+    if (pin !== u.pin) {
+      alert('PIN incorrecto.');
+      return;
     }
 
-    function deleteCase(index) {
-      if (!confirm('¿Seguro que quieres borrar este expediente?')) return;
-      const cases = getCases();
-      cases.splice(index, 1);
-      saveCases(cases);
-      renderCases();
-      cancelCaseForm();
+    setSession({ user: username, loggedIn: true });
+    bootApp();
+  }
+
+  function logout() {
+    clearSession();
+    location.reload();
+  }
+
+  function showLogin() {
+    document.getElementById('login-overlay').style.display = 'flex';
+    document.getElementById('import-overlay').style.display = 'none';
+    document.getElementById('app-root').style.display = 'none';
+  }
+
+  // ===== Storage per user =====
+  function readJSON(key, fallback) {
+    try { return JSON.parse(localStorage.getItem(key) || JSON.stringify(fallback)); }
+    catch { return fallback; }
+  }
+  function writeJSON(key, val) {
+    localStorage.setItem(key, JSON.stringify(val));
+  }
+
+  function getSettings() {
+    const defaults = { defaultIVA: 21, defaultIRPF: 15 };
+    return { ...defaults, ...readJSON(KEY_SETTINGS(), {}) };
+  }
+  function saveSettingsStore(s) {
+    writeJSON(KEY_SETTINGS(), s);
+  }
+
+  // ===== Cases =====
+  function getCases() { return readJSON(KEY_CASES(), []); }
+  function saveCases(list) { writeJSON(KEY_CASES(), list); }
+
+  function peekNextRef() {
+    const year = new Date().getFullYear();
+    const key = KEY_REF_COUNTER(year);
+    const counter = parseInt(localStorage.getItem(key) || "0", 10);
+    const next = counter + 1;
+    return `${year}/${String(next).padStart(3, "0")}`;
+  }
+  function commitNextRef(ref) {
+    const m = String(ref).match(/^(\d{4})\/(\d{3})$/);
+    if (!m) return;
+    const year = m[1];
+    const num = parseInt(m[2], 10);
+
+    const key = KEY_REF_COUNTER(year);
+    const current = parseInt(localStorage.getItem(key) || "0", 10);
+    if (num > current) localStorage.setItem(key, String(num));
+  }
+
+  function openCaseForm() {
+    editingCaseId = null;
+    document.getElementById('case-form').style.display = 'block';
+
+    document.getElementById('f-ref').value = peekNextRef();
+    document.getElementById('f-client').value = '';
+    document.getElementById('f-matter').value = '';
+    document.getElementById('f-status').value = 'ABIERTO';
+
+    document.getElementById('f-client').focus();
+  }
+
+  function cancelCaseForm() {
+    editingCaseId = null;
+    document.getElementById('case-form').style.display = 'none';
+  }
+
+  function saveCaseFromForm() {
+    const ref = (document.getElementById('f-ref').value || '').trim();
+    const client = (document.getElementById('f-client').value || '').trim();
+    const matter = (document.getElementById('f-matter').value || '').trim();
+    const status = document.getElementById('f-status').value || 'ABIERTO';
+
+    if (!ref || !client || !matter) {
+      alert('Faltan datos: Ref, Cliente y Asunto son obligatorios.');
+      return;
     }
 
-    function escapeHtml(text) {
-      return String(text)
-        .replaceAll('&', '&amp;')
-        .replaceAll('<', '&lt;')
-        .replaceAll('>', '&gt;')
-        .replaceAll('"', '&quot;')
-        .replaceAll("'", '&#039;');
+    const cases = getCases();
+
+    // Duplicado de referencia
+    const duplicated = cases.some(c => c.ref === ref && c.id !== editingCaseId);
+    if (duplicated) {
+      alert('Esa referencia ya existe. Usa otra.');
+      return;
     }
 
-    function clearCaseFilters() {
-      const qEl = document.getElementById('search-q');
-      const stEl = document.getElementById('filter-status');
-      if (qEl) qEl.value = '';
-      if (stEl) stEl.value = '';
-      renderCases();
+    if (!editingCaseId) {
+      const id = uid();
+      cases.push({ id, ref, client, matter, status, createdAt: Date.now() });
+    } else {
+      const idx = cases.findIndex(c => c.id === editingCaseId);
+      if (idx >= 0) cases[idx] = { ...cases[idx], ref, client, matter, status, updatedAt: Date.now() };
     }
 
-    function renderCases() {
-      const tbody = document.getElementById('cases-tbody');
-      if (!tbody) return;
+    commitNextRef(ref);
+    saveCases(cases);
+    renderCases();
+    updateHomeKPIs();
+    cancelCaseForm();
+  }
 
-      // 1) Datos
-      const allCases = getCases();
+  function editCase(caseId) {
+    const cases = getCases();
+    const c = cases.find(x => x.id === caseId);
+    if (!c) return;
 
-      // 2) KPIs
-      const openCount = allCases.filter(c => (c.status || '') === 'ABIERTO').length;
-      const billedCount = allCases.filter(c => (c.status || '') === 'FACTURADO').length;
-      const archCount = allCases.filter(c => (c.status || '') === 'ARCHIVADO').length;
+    editingCaseId = caseId;
+    document.getElementById('case-form').style.display = 'block';
 
-      const elOpen = document.getElementById('kpi-open');
-      const elBilled = document.getElementById('kpi-billed');
-      const elArch = document.getElementById('kpi-arch');
-      const elTotal = document.getElementById('kpi-total');
+    document.getElementById('f-ref').value = c.ref || '';
+    document.getElementById('f-client').value = c.client || '';
+    document.getElementById('f-matter').value = c.matter || '';
+    document.getElementById('f-status').value = c.status || 'ABIERTO';
+    document.getElementById('f-client').focus();
+  }
 
-      if (elOpen) elOpen.innerText = openCount;
-      if (elBilled) elBilled.innerText = billedCount;
-      if (elArch) elArch.innerText = archCount;
-      if (elTotal) elTotal.innerText = allCases.length;
+  function deleteCase(caseId) {
+    if (!confirm('¿Seguro que quieres borrar este expediente? (También borrará sus actuaciones/docs/eventos vinculados)')) return;
 
-      // 3) Filtros
-      const q = (document.getElementById('search-q')?.value || '').trim().toLowerCase();
-      const st = (document.getElementById('filter-status')?.value || '').trim();
+    // borrar expediente
+    let cases = getCases();
+    cases = cases.filter(c => c.id !== caseId);
+    saveCases(cases);
 
-      // 4) Filtrado manteniendo índice real
-      const filtered = allCases
-        .map((c, idx) => ({ ...c, __idx: idx }))
-        .filter(c => {
-          if (q) {
-            const ref = String(c.ref || '').toLowerCase();
-            const client = String(c.client || '').toLowerCase();
-            const matter = String(c.matter || '').toLowerCase();
-            if (!(ref.includes(q) || client.includes(q) || matter.includes(q))) return false;
-          }
-          if (st) {
-            if (String(c.status || '') !== st) return false;
-          }
-          return true;
-        });
+    // borrar actuaciones/docs del expediente
+    const actsMap = readJSON(KEY_ACTS(), {});
+    delete actsMap[caseId];
+    writeJSON(KEY_ACTS(), actsMap);
 
-      // 5) Pintar tabla
-      tbody.innerHTML = '';
+    const docsMap = readJSON(KEY_DOCS(), {});
+    delete docsMap[caseId];
+    writeJSON(KEY_DOCS(), docsMap);
 
-      filtered.forEach((c) => {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-          <td>${escapeHtml(c.ref)}</td>
-          <td>${escapeHtml(c.client)}</td>
-          <td>${escapeHtml(c.matter)}</td>
-          <td>${escapeHtml(c.status)}</td>
-          <td style="text-align:right;">
-            <button class="btn" type="button" style="background:#111827;" onclick="openCase(${c.__idx})">Abrir</button>
-            <button class="btn" type="button" style="margin-left:8px;" onclick="editCase(${c.__idx})">Editar</button>
-            <button class="btn" type="button" style="background:#2563eb; margin-left:8px;" onclick="deleteCase(${c.__idx})">Borrar</button>
-          </td>
-        `;
-        tbody.appendChild(tr);
-      });
-    }
+    // borrar eventos vinculados
+    let events = readJSON(KEY_EVENTS(), []);
+    events = events.filter(e => e.caseId !== caseId);
+    writeJSON(KEY_EVENTS(), events);
 
-    // ====== FICHA ======
-    function openCase(index) {
-      const cases = getCases();
-      const c = cases[index];
-      if (!c) {
-        alert("No se encontró el expediente.");
-        return;
-      }
+    // opcional: marcar facturas sin ref? aquí las dejamos, pero quitamos caseId
+    let invoices = readJSON(KEY_INVOICES(), []);
+    invoices = invoices.map(inv => inv.caseId === caseId ? ({ ...inv, caseId: null }) : inv);
+    writeJSON(KEY_INVOICES(), invoices);
 
-      currentCaseIndex = index;
-
-      document.getElementById('ficha-ref').innerText = c.ref || '-';
-      document.getElementById('ficha-client').innerText = c.client || '-';
-      document.getElementById('ficha-matter').innerText = c.matter || '-';
-      document.getElementById('ficha-status').innerText = c.status || '-';
-
-      const sub = document.getElementById('ficha-subtitle');
-      if (sub) sub.innerText = `Expediente seleccionado: ${c.ref || ''}`;
-
-      showPage('ficha');
-    }
-
-    function goBackToCases() {
+    if (currentCaseId === caseId) {
+      currentCaseId = null;
       showPage('expedientes');
     }
 
-    // ====== NAVEGACIÓN ======
-    function showPage(page) {
-      const pages = ['inicio', 'expedientes', 'ficha', 'facturacion', 'agenda', 'ajustes'];
+    renderCases();
+    renderAgenda();
+    renderInvoices();
+    updateHomeKPIs();
+    cancelCaseForm();
+  }
 
-      pages.forEach((p) => {
-        const el = document.getElementById('page-' + p);
-        if (el) el.style.display = 'none';
-        const nav = document.getElementById('nav-' + p);
-        if (nav) nav.classList.remove('active');
+  function clearCaseFilters() {
+    document.getElementById('search-q').value = '';
+    document.getElementById('filter-status').value = '';
+    renderCases();
+  }
+
+  function renderCases() {
+    const tbody = document.getElementById('cases-tbody');
+    const allCases = getCases();
+
+    // KPIs
+    document.getElementById('kpi-open').innerText = allCases.filter(c => c.status === 'ABIERTO').length;
+    document.getElementById('kpi-billed').innerText = allCases.filter(c => c.status === 'FACTURADO').length;
+    document.getElementById('kpi-arch').innerText = allCases.filter(c => c.status === 'ARCHIVADO').length;
+    document.getElementById('kpi-total').innerText = allCases.length;
+
+    const q = (document.getElementById('search-q').value || '').trim().toLowerCase();
+    const st = (document.getElementById('filter-status').value || '').trim();
+
+    let filtered = allCases.slice();
+
+    if (q) {
+      filtered = filtered.filter(c => {
+        const ref = String(c.ref||'').toLowerCase();
+        const client = String(c.client||'').toLowerCase();
+        const matter = String(c.matter||'').toLowerCase();
+        return ref.includes(q) || client.includes(q) || matter.includes(q);
       });
+    }
+    if (st) filtered = filtered.filter(c => c.status === st);
 
-      const target = document.getElementById('page-' + page);
-      if (target) target.style.display = 'block';
+    // Orden por ref desc (aprox) o createdAt desc
+    filtered.sort((a,b) => (b.createdAt||0) - (a.createdAt||0));
 
-      // Solo marcamos active en el menú si existe ese nav (ficha no está en el menú)
-      const navTarget = document.getElementById('nav-' + page);
-      if (navTarget) navTarget.classList.add('active');
+    tbody.innerHTML = '';
+    filtered.forEach(c => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${escapeHtml(c.ref)}</td>
+        <td>${escapeHtml(c.client)}</td>
+        <td>${escapeHtml(c.matter)}</td>
+        <td>${badgeForStatus(c.status)}</td>
+        <td style="text-align:right;">
+          <button class="btn dark" type="button" onclick="openCase('${c.id}')">Abrir</button>
+          <button class="btn" type="button" style="margin-left:8px;" onclick="editCase('${c.id}')">Editar</button>
+          <button class="btn secondary" type="button" style="margin-left:8px;" onclick="deleteCase('${c.id}')">Borrar</button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
 
-      const titles = {
-        inicio:'Inicio',
-        expedientes:'Expedientes',
-        ficha:'Ficha expediente',
-        facturacion:'Facturación',
-        agenda:'Agenda',
-        ajustes:'Ajustes'
-      };
-      const titleEl = document.getElementById('page-title');
-      if (titleEl) titleEl.innerText = titles[page] || 'LexCloud';
+  // ===== Case ficha =====
+  function openCase(caseId) {
+    const c = getCases().find(x => x.id === caseId);
+    if (!c) { alert('No se encontró el expediente.'); return; }
 
-      if (page !== 'expedientes') cancelCaseForm();
+    currentCaseId = caseId;
+
+    document.getElementById('ficha-ref').innerText = c.ref || '-';
+    document.getElementById('ficha-client').innerText = c.client || '-';
+    document.getElementById('ficha-matter').innerText = c.matter || '-';
+    document.getElementById('ficha-status').innerText = c.status || '-';
+    document.getElementById('ficha-subtitle').innerText = `Expediente: ${c.ref || ''} · ${c.client || ''}`;
+
+    // Default dates
+    document.getElementById('act-date').value = nowISODate();
+    document.getElementById('ev-date').value = nowISODate();
+    document.getElementById('inv-date') && (document.getElementById('inv-date').value = nowISODate());
+
+    renderActuations();
+    renderDocs();
+    renderCaseEvents();
+
+    showPage('ficha');
+  }
+
+  function goBackToCases() {
+    showPage('expedientes');
+  }
+
+  // ===== Actuaciones =====
+  function getActsMap() { return readJSON(KEY_ACTS(), {}); }
+  function saveActsMap(map) { writeJSON(KEY_ACTS(), map); }
+
+  function clearActuationForm() {
+    document.getElementById('act-date').value = nowISODate();
+    document.getElementById('act-title').value = '';
+    document.getElementById('act-notes').value = '';
+    document.getElementById('act-title').focus();
+  }
+
+  function addActuation() {
+    if (!currentCaseId) { alert('No hay expediente seleccionado.'); return; }
+
+    const date = document.getElementById('act-date').value || nowISODate();
+    const title = (document.getElementById('act-title').value || '').trim();
+    const notes = (document.getElementById('act-notes').value || '').trim();
+
+    if (!title && !notes) {
+      alert('Escribe al menos un título o notas.');
+      return;
     }
 
-    window.addEventListener('load', function () {
-      renderCases();
-      cancelCaseForm();
+    const map = getActsMap();
+    const list = map[currentCaseId] || [];
+    list.push({ id: uid(), date, title, notes, createdAt: Date.now() });
+    map[currentCaseId] = list;
+
+    saveActsMap(map);
+    renderActuations();
+    clearActuationForm();
+  }
+
+  function deleteActuation(actId) {
+    if (!currentCaseId) return;
+    const map = getActsMap();
+    let list = map[currentCaseId] || [];
+    list = list.filter(a => a.id !== actId);
+    map[currentCaseId] = list;
+    saveActsMap(map);
+    renderActuations();
+  }
+
+  function renderActuations() {
+    const tbody = document.getElementById('acts-tbody');
+    const map = getActsMap();
+    const list = (map[currentCaseId] || []).slice();
+
+    // sort by date desc then createdAt desc
+    list.sort((a,b) => {
+      const ad = String(a.date||'');
+      const bd = String(b.date||'');
+      if (ad !== bd) return bd.localeCompare(ad);
+      return (b.createdAt||0) - (a.createdAt||0);
     });
-  </script>
+
+    tbody.innerHTML = '';
+    if (!list.length) {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td colspan="4" class="muted">Sin actuaciones todavía.</td>`;
+      tbody.appendChild(tr);
+      return;
+    }
+
+    list.forEach(a => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${escapeHtml(a.date || '-')}</td>
+        <td><b>${escapeHtml(a.title || '(sin título)')}</b></td>
+        <td>${escapeHtml(a.notes || '')}</td>
+        <td style="text-align:right;">
+          <button class="btn secondary no-print" type="button" onclick="deleteActuation('${a.id}')">Borrar</button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  // ===== Document references =====
+  function getDocsMap() { return readJSON(KEY_DOCS(), {}); }
+  function saveDocsMap(map) { writeJSON(KEY_DOCS(), map); }
+
+  function clearDocForm() {
+    document.getElementById('doc-name').value = '';
+    document.getElementById('doc-note').value = '';
+    document.getElementById('doc-name').focus();
+  }
+
+  function addDocumentRef() {
+    if (!currentCaseId) { alert('No hay expediente seleccionado.'); return; }
+    const name = (document.getElementById('doc-name').value || '').trim();
+    const note = (document.getElementById('doc-note').value || '').trim();
+    if (!name) { alert('Escribe el nombre del documento.'); return; }
+
+    const map = getDocsMap();
+    const list = map[currentCaseId] || [];
+    list.push({ id: uid(), date: new Date().toLocaleString('es-ES'), name, note, createdAt: Date.now() });
+    map[currentCaseId] = list;
+
+    saveDocsMap(map);
+    renderDocs();
+    clearDocForm();
+  }
+
+  function deleteDoc(docId) {
+    if (!currentCaseId) return;
+    const map = getDocsMap();
+    let list = map[currentCaseId] || [];
+    list = list.filter(d => d.id !== docId);
+    map[currentCaseId] = list;
+    saveDocsMap(map);
+    renderDocs();
+  }
+
+  function renderDocs() {
+    const tbody = document.getElementById('docs-tbody');
+    const map = getDocsMap();
+    const list = (map[currentCaseId] || []).slice();
+    list.sort((a,b) => (b.createdAt||0) - (a.createdAt||0));
+
+    tbody.innerHTML = '';
+    if (!list.length) {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td colspan="4" class="muted">Sin documentos registrados.</td>`;
+      tbody.appendChild(tr);
+      return;
+    }
+
+    list.forEach(d => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${escapeHtml(d.date || '-')}</td>
+        <td><b>${escapeHtml(d.name || '-')}</b></td>
+        <td>${escapeHtml(d.note || '')}</td>
+        <td style="text-align:right;">
+          <button class="btn secondary no-print" type="button" onclick="deleteDoc('${d.id}')">Borrar</button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  // ===== Events (Agenda global) =====
+  function getEvents() { return readJSON(KEY_EVENTS(), []); }
+  function saveEvents(list) { writeJSON(KEY_EVENTS(), list); }
+
+  function clearEventForm() {
+    document.getElementById('ev-date').value = nowISODate();
+    document.getElementById('ev-time').value = '';
+    document.getElementById('ev-title').value = '';
+    document.getElementById('ev-place').value = '';
+    document.getElementById('ev-title').focus();
+  }
+
+  function addEventForCurrentCase() {
+    if (!currentCaseId) { alert('No hay expediente seleccionado.'); return; }
+
+    const date = document.getElementById('ev-date').value || nowISODate();
+    const time = document.getElementById('ev-time').value || '';
+    const title = (document.getElementById('ev-title').value || '').trim();
+    const place = (document.getElementById('ev-place').value || '').trim();
+
+    if (!title) { alert('Escribe un título para el evento.'); return; }
+
+    const list = getEvents();
+    list.push({ id: uid(), date, time, title, place, caseId: currentCaseId, createdAt: Date.now() });
+    saveEvents(list);
+
+    renderCaseEvents();
+    renderAgenda();
+    updateHomeKPIs();
+    clearEventForm();
+  }
+
+  function deleteEvent(eventId) {
+    let list = getEvents();
+    list = list.filter(e => e.id !== eventId);
+    saveEvents(list);
+
+    renderCaseEvents();
+    renderAgenda();
+    updateHomeKPIs();
+  }
+
+  function renderCaseEvents() {
+    const tbody = document.getElementById('case-events-tbody');
+    const list = getEvents().filter(e => e.caseId === currentCaseId);
+
+    // sort by date/time asc
+    list.sort((a,b) => {
+      const aKey = `${a.date||''}T${a.time||'00:00'}`;
+      const bKey = `${b.date||''}T${b.time||'00:00'}`;
+      return aKey.localeCompare(bKey);
+    });
+
+    tbody.innerHTML = '';
+    if (!list.length) {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td colspan="4" class="muted">Sin eventos vinculados.</td>`;
+      tbody.appendChild(tr);
+      return;
+    }
+
+    list.forEach(e => {
+      const when = `${e.date || '-'} ${e.time || ''}`.trim();
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${escapeHtml(when)}</td>
+        <td><b>${escapeHtml(e.title)}</b></td>
+        <td>${escapeHtml(e.place || '')}</td>
+        <td style="text-align:right;">
+          <button class="btn secondary no-print" type="button" onclick="deleteEvent('${e.id}')">Borrar</button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  // ===== Agenda page =====
+  function openAgendaForm() {
+    editingAgendaId = null;
+    document.getElementById('agenda-form').style.display = 'block';
+    document.getElementById('ag-date').value = nowISODate();
+    document.getElementById('ag-time').value = '';
+    document.getElementById('ag-title').value = '';
+    document.getElementById('ag-place').value = '';
+    fillAgendaCaseDropdown();
+    document.getElementById('ag-title').focus();
+  }
+
+  function cancelAgendaForm() {
+    editingAgendaId = null;
+    document.getElementById('agenda-form').style.display = 'none';
+  }
+
+  function fillAgendaCaseDropdown(selectedCaseId = '') {
+    const sel = document.getElementById('ag-case');
+    const cases = getCases().slice().sort((a,b) => String(a.ref||'').localeCompare(String(b.ref||'')));
+    sel.innerHTML = '';
+    const opt0 = document.createElement('option');
+    opt0.value = '';
+    opt0.textContent = 'Sin vincular a expediente';
+    sel.appendChild(opt0);
+
+    cases.forEach(c => {
+      const opt = document.createElement('option');
+      opt.value = c.id;
+      opt.textContent = `${c.ref} — ${c.client}`;
+      sel.appendChild(opt);
+    });
+
+    sel.value = selectedCaseId || '';
+  }
+
+  function saveAgendaFromForm() {
+    const date = document.getElementById('ag-date').value || nowISODate();
+    const time = document.getElementById('ag-time').value || '';
+    const title = (document.getElementById('ag-title').value || '').trim();
+    const place = (document.getElementById('ag-place').value || '').trim();
+    const caseId = document.getElementById('ag-case').value || '';
+
+    if (!title) { alert('Escribe un título.'); return; }
+
+    let events = getEvents();
+
+    if (!editingAgendaId) {
+      events.push({ id: uid(), date, time, title, place, caseId: caseId || null, createdAt: Date.now() });
+    } else {
+      const idx = events.findIndex(e => e.id === editingAgendaId);
+      if (idx >= 0) events[idx] = { ...events[idx], date, time, title, place, caseId: caseId || null, updatedAt: Date.now() };
+    }
+
+    saveEvents(events);
+    cancelAgendaForm();
+    renderAgenda();
+    if (currentCaseId) renderCaseEvents();
+    updateHomeKPIs();
+  }
+
+  function editAgenda(eventId) {
+    const e = getEvents().find(x => x.id === eventId);
+    if (!e) return;
+
+    editingAgendaId = eventId;
+    document.getElementById('agenda-form').style.display = 'block';
+
+    document.getElementById('ag-date').value = e.date || nowISODate();
+    document.getElementById('ag-time').value = e.time || '';
+    document.getElementById('ag-title').value = e.title || '';
+    document.getElementById('ag-place').value = e.place || '';
+    fillAgendaCaseDropdown(e.caseId || '');
+
+    document.getElementById('ag-title').focus();
+  }
+
+  function clearAgendaFilters() {
+    document.getElementById('ag-search').value = '';
+    renderAgenda();
+  }
+
+  function renderAgenda() {
+    const tbody = document.getElementById('agenda-tbody');
+    const q = (document.getElementById('ag-search').value || '').trim().toLowerCase();
+
+    const cases = getCases();
+    const caseById = Object.fromEntries(cases.map(c => [c.id, c]));
+
+    let list = getEvents().slice();
+
+    if (q) {
+      list = list.filter(e => {
+        const ref = caseById[e.caseId]?.ref || '';
+        const hay = `${e.title||''} ${e.place||''} ${ref}`.toLowerCase();
+        return hay.includes(q);
+      });
+    }
+
+    // sort by datetime asc
+    list.sort((a,b) => {
+      const aKey = `${a.date||''}T${a.time||'00:00'}`;
+      const bKey = `${b.date||''}T${b.time||'00:00'}`;
+      return aKey.localeCompare(bKey);
+    });
+
+    tbody.innerHTML = '';
+    if (!list.length) {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td colspan="5" class="muted">Sin eventos.</td>`;
+      tbody.appendChild(tr);
+      return;
+    }
+
+    list.forEach(e => {
+      const when = `${e.date||'-'} ${e.time||''}`.trim();
+      const ref = caseById[e.caseId]?.ref || '';
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${escapeHtml(when)}</td>
+        <td><b>${escapeHtml(e.title)}</b></td>
+        <td>${escapeHtml(ref)}</td>
+        <td>${escapeHtml(e.place||'')}</td>
+        <td style="text-align:right;">
+          ${ref ? `<button class="btn dark" type="button" onclick="openCase('${e.caseId}')">Abrir expediente</button>` : ''}
+          <button class="btn" type="button" style="margin-left:8px;" onclick="editAgenda('${e.id}')">Editar</button>
+          <button class="btn secondary" type="button" style="margin-left:8px;" onclick="deleteEvent('${e.id}')">Borrar</button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  // ===== Invoices =====
+  function getInvoices() { return readJSON(KEY_INVOICES(), []); }
+  function saveInvoices(list) { writeJSON(KEY_INVOICES(), list); }
+
+  function peekNextInvoiceNumber() {
+    const year = new Date().getFullYear();
+    const key = KEY_INV_COUNTER(year);
+    const counter = parseInt(localStorage.getItem(key) || "0", 10);
+    const next = counter + 1;
+    return `A-${String(next).padStart(4, "0")}`;
+  }
+  function commitNextInvoiceNumber(number) {
+    const m = String(number).match(/^A-(\d{4})$/);
+    if (!m) return;
+    const year = new Date().getFullYear();
+    const num = parseInt(m[1], 10);
+    const key = KEY_INV_COUNTER(year);
+    const current = parseInt(localStorage.getItem(key) || "0", 10);
+    if (num > current) localStorage.setItem(key, String(num));
+  }
+
+  function openInvoiceForm() {
+    editingInvoiceId = null;
+    document.getElementById('invoice-form').style.display = 'block';
+
+    const settings = getSettings();
+    document.getElementById('inv-number').value = peekNextInvoiceNumber();
+    document.getElementById('inv-date').value = nowISODate();
+    document.getElementById('inv-client').value = '';
+    document.getElementById('inv-ref').value = '';
+    document.getElementById('inv-concept').value = '';
+    document.getElementById('inv-base').value = '';
+    document.getElementById('inv-iva').value = String(settings.defaultIVA ?? 21);
+    document.getElementById('inv-irpf').value = String(settings.defaultIRPF ?? 15);
+    document.getElementById('inv-status').value = 'BORRADOR';
+
+    updateInvoicePreview();
+    document.getElementById('inv-client').focus();
+  }
+
+  function cancelInvoiceForm() {
+    editingInvoiceId = null;
+    document.getElementById('invoice-form').style.display = 'none';
+  }
+
+  function openInvoiceFromCurrentCase() {
+    if (!currentCaseId) { alert('No hay expediente seleccionado.'); return; }
+    showPage('facturacion');
+    openInvoiceForm();
+
+    const c = getCases().find(x => x.id === currentCaseId);
+    if (c) {
+      document.getElementById('inv-client').value = c.client || '';
+      document.getElementById('inv-ref').value = c.ref || '';
+      document.getElementById('inv-concept').value = `Honorarios asunto ${c.ref || ''}`.trim();
+      updateInvoicePreview();
+    }
+  }
+
+  function calcInvoiceTotals(base, ivaPct, irpfPct) {
+    const iva = base * (ivaPct/100);
+    const irpf = base * (irpfPct/100);
+    const total = base + iva - irpf;
+    return { iva, irpf, total };
+  }
+
+  function updateInvoicePreview() {
+    const base = toNumber(document.getElementById('inv-base')?.value);
+    const ivaPct = toNumber(document.getElementById('inv-iva')?.value);
+    const irpfPct = toNumber(document.getElementById('inv-irpf')?.value);
+    const { iva, irpf, total } = calcInvoiceTotals(base, ivaPct, irpfPct);
+
+    document.getElementById('pv-base').innerText = eur(base);
+    document.getElementById('pv-iva').innerText = eur(iva);
+    document.getElementById('pv-irpf').innerText = eur(irpf);
+    document.getElementById('pv-total').innerText = eur(total);
+  }
+
+  // live preview listeners (set once)
+  function wireInvoicePreview() {
+    ['inv-base','inv-iva','inv-irpf'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.addEventListener('input', updateInvoicePreview);
+    });
+  }
+
+  function saveInvoiceFromForm() {
+    const number = (document.getElementById('inv-number').value || '').trim();
+    const date = document.getElementById('inv-date').value || nowISODate();
+    const client = (document.getElementById('inv-client').value || '').trim();
+    const ref = (document.getElementById('inv-ref').value || '').trim();
+    const concept = (document.getElementById('inv-concept').value || '').trim();
+    const base = toNumber(document.getElementById('inv-base').value);
+    const ivaPct = toNumber(document.getElementById('inv-iva').value);
+    const irpfPct = toNumber(document.getElementById('inv-irpf').value);
+    const status = document.getElementById('inv-status').value || 'BORRADOR';
+
+    if (!number || !client || !concept) {
+      alert('Faltan datos: Nº, Cliente y Concepto son obligatorios.');
+      return;
+    }
+
+    const invoices = getInvoices();
+
+    // duplicado de número
+    const duplicated = invoices.some(inv => inv.number === number && inv.id !== editingInvoiceId);
+    if (duplicated) { alert('Ese número de factura ya existe.'); return; }
+
+    // intentar enlazar con expediente por ref
+    const cases = getCases();
+    const linkedCase = ref ? cases.find(c => c.ref === ref) : null;
+
+    const totals = calcInvoiceTotals(base, ivaPct, irpfPct);
+
+    if (!editingInvoiceId) {
+      invoices.push({
+        id: uid(),
+        number, date, client, ref,
+        caseId: linkedCase?.id || (currentCaseId || null),
+        concept,
+        base, ivaPct, irpfPct,
+        iva: totals.iva, irpf: totals.irpf, total: totals.total,
+        status,
+        createdAt: Date.now()
+      });
+    } else {
+      const idx = invoices.findIndex(inv => inv.id === editingInvoiceId);
+      if (idx >= 0) {
+        invoices[idx] = {
+          ...invoices[idx],
+          number, date, client, ref,
+          caseId: linkedCase?.id || invoices[idx].caseId || null,
+          concept,
+          base, ivaPct, irpfPct,
+          iva: totals.iva, irpf: totals.irpf, total: totals.total,
+          status,
+          updatedAt: Date.now()
+        };
+      }
+    }
+
+    commitNextInvoiceNumber(number);
+    saveInvoices(invoices);
+
+    // si se emite/cobra, opcionalmente marcar expediente como facturado (si está enlazado)
+    if (linkedCase) {
+      const cases2 = getCases();
+      const idxC = cases2.findIndex(c => c.id === linkedCase.id);
+      if (idxC >= 0 && cases2[idxC].status === 'ABIERTO') {
+        // no forzamos, pero es razonable si quieres:
+        // cases2[idxC].status = 'FACTURADO';
+        saveCases(cases2);
+      }
+    }
+
+    renderInvoices();
+    renderCases();
+    updateHomeKPIs();
+    cancelInvoiceForm();
+  }
+
+  function editInvoice(invId) {
+    const inv = getInvoices().find(x => x.id === invId);
+    if (!inv) return;
+
+    editingInvoiceId = invId;
+    document.getElementById('invoice-form').style.display = 'block';
+
+    document.getElementById('inv-number').value = inv.number || '';
+    document.getElementById('inv-date').value = inv.date || nowISODate();
+    document.getElementById('inv-client').value = inv.client || '';
+    document.getElementById('inv-ref').value = inv.ref || '';
+    document.getElementById('inv-concept').value = inv.concept || '';
+    document.getElementById('inv-base').value = String(inv.base ?? '');
+    document.getElementById('inv-iva').value = String(inv.ivaPct ?? 21);
+    document.getElementById('inv-irpf').value = String(inv.irpfPct ?? 15);
+    document.getElementById('inv-status').value = inv.status || 'BORRADOR';
+
+    updateInvoicePreview();
+    document.getElementById('inv-client').focus();
+  }
+
+  function deleteInvoice(invId) {
+    if (!confirm('¿Seguro que quieres borrar esta factura?')) return;
+    let list = getInvoices();
+    list = list.filter(i => i.id !== invId);
+    saveInvoices(list);
+    renderInvoices();
+    updateHomeKPIs();
+  }
+
+  function clearInvoiceFilters() {
+    document.getElementById('inv-search').value = '';
+    document.getElementById('inv-filter').value = '';
+    renderInvoices();
+  }
+
+  function renderInvoices() {
+    const tbody = document.getElementById('invoices-tbody');
+    const q = (document.getElementById('inv-search').value || '').trim().toLowerCase();
+    const st = (document.getElementById('inv-filter').value || '').trim();
+
+    let list = getInvoices().slice();
+    if (q) {
+      list = list.filter(inv => {
+        const hay = `${inv.number||''} ${inv.client||''} ${inv.ref||''} ${inv.concept||''}`.toLowerCase();
+        return hay.includes(q);
+      });
+    }
+    if (st) list = list.filter(inv => (inv.status||'') === st);
+
+    // sort date desc then number desc
+    list.sort((a,b) => {
+      const ad = String(a.date||'');
+      const bd = String(b.date||'');
+      if (ad !== bd) return bd.localeCompare(ad);
+      return String(b.number||'').localeCompare(String(a.number||''));
+    });
+
+    tbody.innerHTML = '';
+    if (!list.length) {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td colspan="7" class="muted">Sin facturas.</td>`;
+      tbody.appendChild(tr);
+      return;
+    }
+
+    list.forEach(inv => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td><b>${escapeHtml(inv.number)}</b></td>
+        <td>${escapeHtml(inv.date || '-')}</td>
+        <td>
+          <div><b>${escapeHtml(inv.client || '-')}</b></div>
+          <div class="muted" style="font-size:12px;">${escapeHtml(inv.concept || '')}</div>
+        </td>
+        <td>${escapeHtml(inv.ref || '')}</td>
+        <td>${badgeForStatus(inv.status)}</td>
+        <td style="text-align:right;"><b>${eur(toNumber(inv.total))}</b></td>
+        <td style="text-align:right;">
+          <button class="btn dark" type="button" onclick="openInvoicePrint('${inv.id}')">Ver/Imprimir</button>
+          <button class="btn" type="button" style="margin-left:8px;" onclick="editInvoice('${inv.id}')">Editar</button>
+          <button class="btn secondary" type="button" style="margin-left:8px;" onclick="deleteInvoice('${inv.id}')">Borrar</button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  function openInvoicePrint(invId) {
+    const inv = getInvoices().find(x => x.id === invId);
+    if (!inv) return;
+
+    printingInvoiceId = invId;
+
+    document.getElementById('p-number').innerText = inv.number || '-';
+    document.getElementById('p-date').innerText = inv.date || '-';
+    document.getElementById('p-client').innerText = inv.client || '-';
+    document.getElementById('p-ref').innerText = `Ref: ${inv.ref || '-'}`;
+    document.getElementById('p-concept').innerText = inv.concept || '-';
+    document.getElementById('p-base').innerText = eur(toNumber(inv.base));
+
+    document.getElementById('p-s-base').innerText = eur(toNumber(inv.base));
+    document.getElementById('p-s-iva').innerText = eur(toNumber(inv.iva));
+    document.getElementById('p-s-irpf').innerText = eur(toNumber(inv.irpf));
+    document.getElementById('p-s-total').innerText = eur(toNumber(inv.total));
+
+    document.getElementById('p-status').innerText = inv.status || '-';
+
+    showPage('invoice-print');
+  }
+
+  // ===== Export / Import =====
+  function exportAllJSON() {
+    const payload = {
+      meta: {
+        app: "LexCloud Demo Pro (1 HTML)",
+        user: getSession()?.user || 'guest',
+        exportedAt: new Date().toISOString()
+      },
+      settings: readJSON(KEY_SETTINGS(), {}),
+      cases: getCases(),
+      acts: readJSON(KEY_ACTS(), {}),
+      docs: readJSON(KEY_DOCS(), {}),
+      events: readJSON(KEY_EVENTS(), []),
+      invoices: readJSON(KEY_INVOICES(), [])
+    };
+
+    const json = JSON.stringify(payload, null, 2);
+
+    // Descargar como archivo (sin librerías)
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    const user = (getSession()?.user || 'user').replaceAll(' ', '_');
+    a.download = `lexcloud_export_${user}.json`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  function openImportDialog() {
+    document.getElementById('import-text').value = '';
+    document.getElementById('import-overlay').style.display = 'flex';
+  }
+  function closeImportDialog() {
+    document.getElementById('import-overlay').style.display = 'none';
+  }
+
+  function importAllJSON() {
+    const txt = document.getElementById('import-text').value || '';
+    let obj = null;
+    try { obj = JSON.parse(txt); }
+    catch { alert('JSON inválido.'); return; }
+
+    if (!obj || typeof obj !== 'object') { alert('JSON inválido.'); return; }
+
+    if (!confirm('Esto reemplazará tus datos actuales de este usuario. ¿Continuar?')) return;
+
+    writeJSON(KEY_SETTINGS(), obj.settings || {});
+    saveCases(Array.isArray(obj.cases) ? obj.cases : []);
+    writeJSON(KEY_ACTS(), obj.acts || {});
+    writeJSON(KEY_DOCS(), obj.docs || {});
+    writeJSON(KEY_EVENTS(), Array.isArray(obj.events) ? obj.events : []);
+    writeJSON(KEY_INVOICES(), Array.isArray(obj.invoices) ? obj.invoices : []);
+
+    closeImportDialog();
+
+    // refrescar todo
+    renderCases();
+    renderAgenda();
+    renderInvoices();
+    updateHomeKPIs();
+    alert('Importación completada.');
+  }
+
+  // ===== Settings page =====
+  function loadSettingsUI() {
+    const s = getSettings();
+    const sess = getSession();
+
+    document.getElementById('set-user').value = sess?.user || '';
+    document.getElementById('set-pin').value = '';
+    document.getElementById('set-iva').value = String(s.defaultIVA ?? 21);
+    document.getElementById('set-irpf').value = String(s.defaultIRPF ?? 15);
+  }
+
+  function saveSettings() {
+    const sess = getSession();
+    if (!sess?.user) return;
+
+    const newUser = (document.getElementById('set-user').value || '').trim() || sess.user;
+    const newPin = (document.getElementById('set-pin').value || '').trim();
+    const iva = toNumber(document.getElementById('set-iva').value);
+    const irpf = toNumber(document.getElementById('set-irpf').value);
+
+    // Guardar defaults
+    saveSettingsStore({ defaultIVA: iva, defaultIRPF: irpf });
+
+    // Cambiar nombre usuario (renombrado: copiamos datos al nuevo namespace)
+    if (newUser !== sess.user) {
+      // asegurar user
+      ensureUserExists(newUser);
+
+      // copiar datos de namespace actual a nuevo
+      const oldUser = sess.user;
+      const oldSess = { ...sess };
+
+      // Guardamos payload actual, cambiamos session, importamos
+      const payload = {
+        settings: readJSON(KEY_SETTINGS(), {}),
+        cases: readJSON(KEY_CASES(), []),
+        acts: readJSON(KEY_ACTS(), {}),
+        docs: readJSON(KEY_DOCS(), {}),
+        events: readJSON(KEY_EVENTS(), []),
+        invoices: readJSON(KEY_INVOICES(), [])
+      };
+
+      // Cambiar session al nuevo usuario
+      setSession({ user: newUser, loggedIn: true });
+
+      // Escribir en nuevo namespace
+      writeJSON(KEY_SETTINGS(), payload.settings || {});
+      writeJSON(KEY_CASES(), payload.cases || []);
+      writeJSON(KEY_ACTS(), payload.acts || {});
+      writeJSON(KEY_DOCS(), payload.docs || {});
+      writeJSON(KEY_EVENTS(), payload.events || []);
+      writeJSON(KEY_INVOICES(), payload.invoices || []);
+
+      // Volver a UI
+      alert(`Usuario cambiado de "${oldUser}" a "${newUser}". (Los datos se copiaron al nuevo usuario)`);
+    }
+
+    // Guardar PIN si procede
+    if (newPin) {
+      if (!/^\d{4,8}$/.test(newPin)) { alert('PIN inválido (4-8 dígitos).'); return; }
+      const users = getUsers();
+      users[newUser] = users[newUser] || {};
+      users[newUser].pin = newPin;
+      saveUsers(users);
+    }
+
+    bootApp(); // refresca nombre y todo
+    alert('Ajustes guardados.');
+  }
+
+  function resetAllData() {
+    if (!confirm('Vas a borrar TODOS tus datos de este usuario. ¿Seguro?')) return;
+    if (!confirm('Última confirmación: esto no se puede deshacer. ¿Borrar?')) return;
+
+    localStorage.removeItem(KEY_SETTINGS());
+    localStorage.removeItem(KEY_CASES());
+    localStorage.removeItem(KEY_ACTS());
+    localStorage.removeItem(KEY_DOCS());
+    localStorage.removeItem(KEY_EVENTS());
+    localStorage.removeItem(KEY_INVOICES());
+
+    // counters también (solo del año actual, simple)
+    const y = new Date().getFullYear();
+    localStorage.removeItem(KEY_REF_COUNTER(y));
+    localStorage.removeItem(KEY_INV_COUNTER(y));
+
+    currentCaseId = null;
+    editingCaseId = null;
+
+    renderCases();
+    renderAgenda();
+    renderInvoices();
+    updateHomeKPIs();
+    alert('Datos borrados.');
+    showPage('inicio');
+  }
+
+  // ===== Navigation =====
+  function showPage(page) {
+    const pages = ['inicio', 'expedientes', 'ficha', 'facturacion', 'invoice-print', 'agenda', 'ajustes'];
+
+    pages.forEach(p => {
+      const el = document.getElementById('page-' + p);
+      if (el) el.style.display = 'none';
+      const nav = document.getElementById('nav-' + p);
+      if (nav) nav.classList.remove('active');
+    });
+
+    const target = document.getElementById('page-' + page);
+    if (target) target.style.display = 'block';
+
+    // nav active si existe (invoice-print y ficha no están en menú)
+    const navTarget = document.getElementById('nav-' + page);
+    if (navTarget) navTarget.classList.add('active');
+
+    const titles = {
+      inicio:'Inicio',
+      expedientes:'Expedientes',
+      ficha:'Ficha expediente',
+      facturacion:'Facturación',
+      'invoice-print':'Factura',
+      agenda:'Agenda',
+      ajustes:'Ajustes'
+    };
+    document.getElementById('page-title').innerText = titles[page] || 'LexCloud';
+
+    // limpiar forms si hace falta
+    if (page !== 'expedientes') cancelCaseForm();
+    if (page !== 'facturacion') cancelInvoiceForm();
+    if (page !== 'agenda') cancelAgendaForm();
+
+    if (page === 'ajustes') loadSettingsUI();
+    if (page === 'agenda') fillAgendaCaseDropdown();
+  }
+
+  // ===== Home KPIs =====
+  function updateHomeKPIs() {
+    const cases = getCases();
+    const events = getEvents();
+    const invoices = getInvoices();
+
+    document.getElementById('home-kpi-cases').innerText = cases.length;
+    document.getElementById('home-kpi-invoices').innerText = invoices.length;
+
+    // eventos próximos 7 días
+    const now = new Date();
+    const in7 = new Date(now.getTime() + 7*24*60*60*1000);
+    const count = events.filter(e => {
+      if (!e.date) return false;
+      const d = new Date(e.date + 'T00:00:00');
+      return d >= new Date(now.toDateString()) && d <= in7;
+    }).length;
+    document.getElementById('home-kpi-events').innerText = count;
+  }
+
+  // ===== Boot =====
+  function bootApp() {
+    const sess = getSession();
+    if (!sess?.loggedIn || !sess.user) {
+      showLogin();
+      return;
+    }
+
+    document.getElementById('login-overlay').style.display = 'none';
+    document.getElementById('app-root').style.display = 'flex';
+    document.getElementById('ui-user').innerText = sess.user;
+    document.getElementById('hello-user').innerText = sess.user + ' 👋';
+
+    // ensure structures
+    ensureUserExists(sess.user);
+
+    // wire
+    wireInvoicePreview();
+
+    // render everything
+    renderCases();
+    renderAgenda();
+    renderInvoices();
+    updateHomeKPIs();
+
+    // defaults
+    document.getElementById('act-date').value = nowISODate();
+    document.getElementById('ev-date').value = nowISODate();
+
+    showPage('inicio');
+  }
+
+  // Start
+  window.addEventListener('load', bootApp);
+</script>
+
 </body>
 </html>
-```
