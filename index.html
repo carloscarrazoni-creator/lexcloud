@@ -237,9 +237,7 @@
     localStorage.setItem(STORAGE_KEY, JSON.stringify(cases));
   }
 function peekNextRef() {
-  const now = new Date();
-  const year = now.getFullYear();
-
+  const year = new Date().getFullYear();
   const key = `lexcloud_ref_counter_${year}`;
   const counter = parseInt(localStorage.getItem(key) || "0", 10);
 
@@ -249,7 +247,6 @@ function peekNextRef() {
 }
 
 function commitNextRef(ref) {
-  // Guarda el contador SOLO si la ref coincide con el patrón YYYY/NNN
   const m = String(ref).match(/^(\d{4})\/(\d{3})$/);
   if (!m) return;
 
@@ -259,12 +256,11 @@ function commitNextRef(ref) {
   const key = `lexcloud_ref_counter_${year}`;
   const current = parseInt(localStorage.getItem(key) || "0", 10);
 
-  // Solo avanzamos (nunca bajamos)
   if (num > current) {
     localStorage.setItem(key, String(num));
   }
 }
-}
+
   function openCaseForm() {
 
     editingIndex = null;
