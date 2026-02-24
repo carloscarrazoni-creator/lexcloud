@@ -236,14 +236,32 @@
   function saveCases(cases) {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(cases));
   }
+function generateNextRef() {
+  const now = new Date();
+  const year = now.getFullYear(); // 2026
 
+  // Guardamos un contador por año, ej: lexcloud_ref_counter_2026
+  const key = `lexcloud_ref_counter_${year}`;
+  let counter = parseInt(localStorage.getItem(key) || "0", 10);
+
+  // Subimos uno
+  counter += 1;
+
+  // Guardamos el nuevo contador
+  localStorage.setItem(key, String(counter));
+
+  // Formateo a 3 dígitos: 1 -> 001, 12 -> 012, 123 -> 123
+  const num = String(counter).padStart(3, "0");
+
+  return `${year}/${num}`;
+}
   function openCaseForm() {
     editingIndex = null;
     document.getElementById('case-form').style.display = 'block';
     document.getElementById('btn-save-case').innerText = 'Guardar expediente';
 
     // limpiar campos
-    document.getElementById('f-ref').value = '';
+    document.getElementById('f-ref').value = generateNextRef();
     document.getElementById('f-client').value = '';
     document.getElementById('f-matter').value = '';
     document.getElementById('f-status').value = 'ABIERTO';
@@ -266,7 +284,12 @@
     }
 
     const cases = getCases();
-
+// Evitar Ref duplicada (excepto si estoy editando el mismo registro)
+const duplicated = cases.some((c, i) => c.ref === ref && i !== editingIndex);
+if (duplicated) {
+  alert("Esa referencia ya existe. Usa otra.");
+  return;
+}
     if (editingIndex === null) {
       // añadir nuevo
       cases.push({ ref, client, matter, status });
